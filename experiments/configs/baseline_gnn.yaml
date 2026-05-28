@@ -1,0 +1,18 @@
+name: baseline_gnn
+description: "Graph branch only — replicates ReGVD-style GNN"
+
+model:
+  graph:
+    in_dim: 768
+    hidden_dim: 256
+    num_layers: 3
+  dropout: 0.3
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 1.0e-4
+  seed: 42
+
+data:
+  dataset: devign

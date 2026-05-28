@@ -1,0 +1,16 @@
+name: baseline_cnn
+description: "Image branch only — replicates VulCNN"
+
+model:
+  image:
+    hidden_dim: 256
+  dropout: 0.3
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 1.0e-4
+  seed: 42
+
+data:
+  dataset: devign

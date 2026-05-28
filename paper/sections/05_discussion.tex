@@ -1,0 +1,34 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Why Each Branch Helps}
+
+% TODO: Fill in after ablation results.
+% Expected argument structure:
+% - Graph catches structural patterns (e.g., tainted data flowing to sink)
+% - Image catches global layout patterns (e.g., deeply nested control flow)
+% - LLM catches semantic context (e.g., unsafe API usage patterns)
+
+\subsection{When VulGCL Fails}
+
+% TODO: Analyze false positives and false negatives after experiments.
+% Expected: obfuscated code, very short functions, unusual coding styles.
+
+\subsection{Limitations}
+
+\begin{itemize}
+  \item VulGCL is currently evaluated on C/C++ (Devign, BigVul). Generalization
+    to other languages requires Joern support and retraining.
+  \item PDG extraction via Joern fails on syntactically malformed code snippets
+    (approx.\ X\% of SO snippets in our dataset).
+  \item VulGCL-Lite's quantization causes a modest accuracy drop of
+    approximately X\%, which may be unacceptable in high-security contexts.
+\end{itemize}
+
+\subsection{Stack Overflow Label Quality}
+
+Raw SO vote scores anticorrelate with security~\cite{chen2019reliable}.
+Our composite labeling strategy (static analysis + comment flags + accepted
+answer status) addresses this, but static analysis tools have their own false
+positive rates. Future work should include manual validation of a sample of SO
+labels.

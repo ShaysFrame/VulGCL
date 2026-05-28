@@ -1,0 +1,70 @@
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{Image-Based Vulnerability Detection}
+
+VulCNN~\cite{vulcnn} converts a function's PDG into a three-channel image using
+degree, Katz, and closeness centrality scores, then classifies with a CNN.
+It achieves scalability comparable to text-based approaches while retaining
+program semantics, but the CNN cannot perform graph message-passing and
+loses relational structure. VulGAI~\cite{vulgai} replaces Katz centrality with
+second-order centrality and a jump-structured CNN architecture, improving speed
+by $3.9\times$ over VulCNN. VulSCC~\cite{vulscc} augments image-based detection
+with a frozen code LLM (Jina-embeddings-code) for semantic enrichment but
+retains no graph branch. None of these methods incorporates graph message-passing.
+
+\subsection{Graph-Based Vulnerability Detection}
+
+ReGVD~\cite{regvd} builds a graph from unique code tokens or a sliding window
+and applies a gated GNN initialized from a pre-trained language model.
+iGnnVD~\cite{ignnvd} ensembles GCN, GAT, and APPNP over a bidirectional code
+property graph. TensorGNN~\cite{tensorgnn} constructs a high-dimensional tensor
+over AST, CFG, DFG, and NCS graphs processed by a tensor-based gated GNN.
+All three are pure GNN approaches with no image or visual modality.
+
+\subsection{Multimodal Vulnerability Detection}
+
+TMF-Net~\cite{tmfnet} fuses contract graphs (GCN), opcode sequences (Bi-LSTM),
+and code images (CNN) for smart-contract vulnerability detection. It is the
+closest work to VulGCL in combining image and graph streams, but targets
+Solidity smart contracts and cannot be directly applied to general C/C++/Java
+source code.
+
+\subsection{Stack Overflow and Code Security}
+
+ICSD~\cite{icsd} detects insecure code snippets in Stack Overflow using a
+Heterogeneous Information Network (HIN) and snippet2vec; it does not use a GNN
+or image modality. iTrustSO~\cite{itrustso} extends ICSD with a GNN on the
+snippet's parse graph integrated with HIN-based relations via hierarchical
+attention (CodeHin2Vec); it classifies snippets posted on SO itself and uses
+HIN structural relations, not community signals (votes, comments) as training
+supervision. Chen et al.~\cite{chen2019reliable} demonstrate empirically that
+SO vote scores and user reputation are unreliable security signals — insecure
+answers average a score of 14 vs.\ 5 for secure answers — motivating the
+signal-aware labeling strategy in VulGCL.
+
+\subsection{Summary and Gap}
+
+\begin{table}[t]
+\centering
+\caption{Comparison of related vulnerability detection methods.}
+\label{tab:related}
+\begin{tabular}{lcccc}
+\toprule
+Method & Graph & Image & LLM & General Code \\
+\midrule
+VulCNN~\cite{vulcnn}       & \texttimes & \checkmark & \texttimes & \checkmark \\
+VulGAI~\cite{vulgai}       & \texttimes & \checkmark & \texttimes & \checkmark \\
+VulSCC~\cite{vulscc}       & \texttimes & \checkmark & \checkmark & \checkmark \\
+ReGVD~\cite{regvd}         & \checkmark & \texttimes & \texttimes & \checkmark \\
+iGnnVD~\cite{ignnvd}       & \checkmark & \texttimes & \texttimes & \checkmark \\
+TensorGNN~\cite{tensorgnn}  & \checkmark & \texttimes & \texttimes & \checkmark \\
+TMF-Net~\cite{tmfnet}      & \checkmark & \checkmark & \texttimes & \texttimes \\
+\midrule
+\textbf{VulGCL (ours)}     & \checkmark & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+As shown in Table~\ref{tab:related}, VulGCL is the first method to combine all
+three modalities for general source-code vulnerability detection.

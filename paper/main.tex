@@ -1,0 +1,66 @@
+\documentclass[10pt, journal]{IEEEtran}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{listings}
+\usepackage{microtype}
+
+% ── Code listing style ────────────────────────────────────────────────────────
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  breaklines=true,
+  frame=single
+}
+
+% ── Title ─────────────────────────────────────────────────────────────────────
+\title{VulGCL: Multimodal Vulnerability Detection via Graph Neural Network,
+       CNN, and Large Language Model Fusion}
+
+\author{
+  Bo~LiLi,~\IEEEmembership{}
+  Mohammad~Mahafuj~Rahman,~\IEEEmembership{}
+  Others~\IEEEmembership{}
+  \thanks{School of Computer Science, Yangzhou University, China.
+  E-mail: \texttt{[your email]}}
+}
+
+\begin{document}
+
+\maketitle
+
+% ── Abstract ──────────────────────────────────────────────────────────────────
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\begin{IEEEkeywords}
+Vulnerability detection, Graph neural networks, CNN, Large language models,
+Multimodal learning, Stack Overflow, Edge deployment
+\end{IEEEkeywords}
+
+% ── Sections ──────────────────────────────────────────────────────────────────
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_methodology}
+\input{sections/04_experiments}
+\input{sections/05_discussion}
+\input{sections/06_conclusion}
+
+% ── Bibliography ──────────────────────────────────────────────────────────────
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

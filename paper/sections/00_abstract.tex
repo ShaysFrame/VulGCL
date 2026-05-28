@@ -1,0 +1,26 @@
+Automated vulnerability detection in source code is critical for software
+security. Existing approaches fall into two camps: image-based methods
+(e.g., VulCNN, VulGAI) that convert code into visual representations for
+CNN classification — fast but losing structural relationships — and graph-based
+methods (e.g., ReGVD, iGnnVD) that apply graph neural networks (GNNs) over
+code graphs — accurate but ignoring visual and semantic signals. No prior work
+unifies all three modalities for general source-code vulnerability detection.
+
+We present \textbf{VulGCL}, a multimodal vulnerability detection framework that
+jointly learns from three complementary views of a code function: (1)~a
+\emph{graph branch} that applies a GNN over the Program Dependency Graph (PDG)
+to capture structural relationships; (2)~an \emph{image branch} that converts
+the PDG into a three-channel image via node centrality encoding and applies a
+CNN to capture visual patterns; and (3)~an \emph{LLM branch} that fine-tunes
+CodeBERT to capture the semantic meaning of code. The three representations are
+fused and passed to a vulnerability classifier.
+
+We additionally propose \textbf{VulGCL-Lite}, a quantized version of VulGCL
+that runs inference on a Raspberry Pi 4B, enabling real-time vulnerability
+scanning on resource-constrained IoT and embedded devices.
+
+Experiments on the Devign and BigVul benchmarks show that VulGCL outperforms
+all single-modality baselines and achieves state-of-the-art F1 of XX.X\% on
+Devign and XX.X\% on BigVul. VulGCL-Lite achieves XX.X\% of full-model
+accuracy at XX\,ms per sample on Raspberry Pi 4B.
+% ↑ Fill in actual numbers after experiments

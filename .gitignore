@@ -1,0 +1,44 @@
+# Data (too large for git)
+data/raw/
+data/processed/
+data/pdgs/
+
+# Logs and outputs
+logs/
+experiments/results/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.synctex.gz
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.blg
+paper/*.bbl
+paper/_minted*/
+
+# Python
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models (too large)
+*.pt
+*.pth
+*.onnx
+*.tflite

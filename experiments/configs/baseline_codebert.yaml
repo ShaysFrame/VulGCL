@@ -1,0 +1,18 @@
+name: baseline_codebert
+description: "LLM branch only — fine-tuned CodeBERT baseline"
+
+model:
+  llm:
+    hidden_dim: 256
+    model_name: microsoft/codebert-base
+  dropout: 0.3
+
+training:
+  epochs: 20
+  batch_size: 16
+  learning_rate: 2.0e-5
+  seed: 42
+
+data:
+  dataset: devign
+  max_seq_len: 512

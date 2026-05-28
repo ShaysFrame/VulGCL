@@ -1,0 +1,60 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Software vulnerabilities remain one of the most persistent threats to modern
+systems. In 2023, the National Vulnerability Database (NVD) recorded over
+28,000 new CVEs~\cite{nvd2023}. Developers frequently copy code from community
+platforms such as Stack Overflow — yet research shows that insecure SO snippets
+carry \emph{higher} average scores (14 vs.\ 5) and view counts (36,508
+vs.\ 18,713) than their secure counterparts~\cite{chen2019reliable}, making
+community reputation an unreliable security signal and motivating automated
+detection tools.
+
+Automated vulnerability detection has been approached from two directions.
+\emph{Text-based} methods treat source code as a sequence of tokens and apply
+NLP models; they scale well but lack program semantics~\cite{vulcnn}.
+\emph{Graph-based} methods construct Abstract Syntax Trees (ASTs), Control Flow
+Graphs (CFGs), or Program Dependency Graphs (PDGs) and apply Graph Neural
+Networks (GNNs); they are semantically rich but slower~\cite{regvd,ignnvd}.
+
+An intermediate line of work — starting with VulCNN~\cite{vulcnn} and refined
+by VulGAI~\cite{vulgai} — converts the PDG into an image via node-centrality
+encoding and uses a CNN for classification. This achieves the speed of
+image-recognition models while preserving some structural information, but the
+CNN's local receptive field cannot perform graph message-passing and loses the
+relational structure embedded in the PDG. VulSCC~\cite{vulscc} augments this
+with a code LLM, but still lacks the graph branch. In the smart-contract domain,
+TMF-Net~\cite{tmfnet} fuses graph, image, and bytecode modalities — but targets
+Solidity contracts, not general C/C++/Java source code.
+
+Prior work such as TemCon~\cite{temcon} demonstrates that structural code 
+patterns are informative for identifying and fixing concurrency defects. VulGCL
+extends this insight to security vulnerabilities, combining structural, visual, and
+semantic representations for detection. 
+
+\textbf{Gap.} No prior work simultaneously fuses (1) graph structural features,
+(2) visual code representations, and (3) LLM semantic embeddings within a
+single end-to-end vulnerability detector for general source code.
+
+We address this gap with \textbf{VulGCL}, which makes the following
+contributions:
+
+\begin{itemize}
+  \item \textbf{Multimodal architecture.} VulGCL is the first framework to
+    jointly learn graph (GNN), visual (CNN), and semantic (CodeBERT) features
+    for general source-code vulnerability detection~(\S\ref{sec:methodology}).
+
+  \item \textbf{Community-signal labeling.} We construct a supplementary
+    training corpus from Stack Overflow code snippets labeled via static
+    analysis, using comment-flag patterns and accepted-answer status as weak
+    supervision signals — informed by the finding that raw vote counts
+    anticorrelate with security~\cite{chen2019reliable}~(\S\ref{sec:data}).
+
+  \item \textbf{Edge deployment.} VulGCL-Lite, a quantized variant of VulGCL,
+    runs real-time inference on a Raspberry Pi 4B, enabling vulnerability
+    scanning on IoT and embedded systems~(\S\ref{sec:deployment}).
+
+  \item \textbf{Empirical evaluation.} Extensive experiments on Devign and
+    BigVul show VulGCL outperforms all single-modality and two-modality
+    baselines~(\S\ref{sec:experiments}).
+\end{itemize}

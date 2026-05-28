@@ -1,0 +1,80 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Research Questions}
+
+\begin{itemize}
+  \item \textbf{RQ1:} Does VulGCL outperform single-modality baselines?
+  \item \textbf{RQ2:} Does each branch contribute? (ablation)
+  \item \textbf{RQ3:} Which GNN architecture works best for the graph branch?
+  \item \textbf{RQ4:} What is VulGCL-Lite's accuracy-latency tradeoff on Raspberry Pi 4B?
+\end{itemize}
+
+\subsection{Baselines}
+
+% TODO: fill in results table after experiments
+
+\subsection{Results — RQ1: Overall Performance}
+
+\begin{table}[t]
+\centering
+\caption{Vulnerability detection results on Devign and BigVul.}
+\label{tab:main_results}
+\begin{tabular}{lcccccc}
+\toprule
+& \multicolumn{3}{c}{Devign} & \multicolumn{3}{c}{BigVul} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+Model & Acc & F1 & AUC & Acc & F1 & AUC \\
+\midrule
+VulCNN~\cite{vulcnn}        & -- & -- & -- & -- & -- & -- \\
+VulGAI~\cite{vulgai}        & -- & -- & -- & -- & -- & -- \\
+ReGVD~\cite{regvd}          & -- & -- & -- & -- & -- & -- \\
+iGnnVD~\cite{ignnvd}        & -- & -- & -- & -- & -- & -- \\
+CodeBERT-ft                 & -- & -- & -- & -- & -- & -- \\
+\midrule
+\textbf{VulGCL (ours)}      & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Results — RQ2: Ablation Study}
+
+\begin{table}[t]
+\centering
+\caption{Ablation study on Devign. Each row removes one branch.}
+\label{tab:ablation}
+\begin{tabular}{lccc}
+\toprule
+Configuration & Acc & F1 & AUC \\
+\midrule
+VulGCL (full)          & -- & -- & -- \\
+\quad w/o Graph branch & -- & -- & -- \\
+\quad w/o Image branch & -- & -- & -- \\
+\quad w/o LLM branch   & -- & -- & -- \\
+\quad Image only       & -- & -- & -- \\
+\quad Graph only       & -- & -- & -- \\
+\quad LLM only         & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Results — RQ3: GNN Architecture Comparison}
+
+% TODO: Compare GCN, GAT, GraphSAGE, GIN on graph branch
+
+\subsection{Results — RQ4: Edge Deployment (Raspberry Pi 4B)}
+
+\begin{table}[t]
+\centering
+\caption{VulGCL-Lite vs.\ VulGCL on Raspberry Pi 4B.}
+\label{tab:edge}
+\begin{tabular}{lccc}
+\toprule
+Model & F1 & Latency (ms) & RAM (MB) \\
+\midrule
+VulGCL (full, GPU)    & -- & -- & -- \\
+VulGCL-Lite (int8)    & -- & -- & -- \\
+VulGCL-Lite (Pi 4B)   & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}

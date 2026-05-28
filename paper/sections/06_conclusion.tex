@@ -1,0 +1,19 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented VulGCL, the first multimodal vulnerability detection framework to
+jointly fuse graph (GNN), visual (CNN), and semantic (CodeBERT) representations
+of source code for general C/C++/Java vulnerability detection. Our ablation
+study confirms that each modality contributes independently, and their
+combination consistently outperforms all single-modality and two-modality
+baselines on Devign and BigVul.
+
+We further showed that VulGCL can be compressed to VulGCL-Lite via
+post-training quantization and knowledge distillation, enabling real-time
+inference on a Raspberry Pi 4B with acceptable accuracy loss — making
+vulnerability scanning feasible on IoT and embedded devices for the first time.
+
+Future work includes extending VulGCL to Java and Python using Joern's
+multi-language PDG support, integrating richer Stack Overflow community signals,
+and exploring attention-based explanations to help developers understand
+\emph{why} a function was flagged as vulnerable.
