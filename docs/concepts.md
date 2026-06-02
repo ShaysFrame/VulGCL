@@ -1,0 +1,546 @@
+# VulGCL — Key Concepts & Definitions
+
+A reference document explaining the core technical terms used in VulGCL.
+Written to be understood without a PhD — concrete examples throughout.
+
+---
+
+## Table of Contents
+
+1. [AST — Abstract Syntax Tree](#1-ast--abstract-syntax-tree)
+2. [CFG — Control Flow Graph](#2-cfg--control-flow-graph)
+3. [PDG — Program Dependency Graph](#3-pdg--program-dependency-graph)
+4. [Joern — The PDG Extraction Tool](#4-joern--the-pdg-extraction-tool)
+5. [GNN — Graph Neural Network](#5-gnn--graph-neural-network)
+6. [GAT — Graph Attention Network](#6-gat--graph-attention-network)
+7. [Graph Centrality Measures](#7-graph-centrality-measures)
+8. [CNN — Convolutional Neural Network](#8-cnn--convolutional-neural-network)
+9. [Transformer & BERT](#9-transformer--bert)
+10. [CodeBERT & the \[CLS\] Token](#10-codebert--the-cls-token)
+11. [Fine-tuning vs. Pre-training](#11-fine-tuning-vs-pre-training)
+12. [Multimodal Fusion](#12-multimodal-fusion)
+13. [Binary Classification & Sigmoid](#13-binary-classification--sigmoid)
+14. [Common Vulnerability Types](#14-common-vulnerability-types)
+
+---
+
+## 1. AST — Abstract Syntax Tree
+
+### What it is
+
+An AST is a tree that represents the **grammatical structure** of source code.
+Each node in the tree is a language construct: a function, a condition, an expression, a variable.
+
+### Example
+
+```c
+int add(int a, int b) {
+    return a + b;
+}
+```
+
+The AST for this looks like:
+
+```
+FunctionDecl: add
+├── Param: a (int)
+├── Param: b (int)
+└── ReturnStmt
+    └── BinaryOp: +
+        ├── Identifier: a
+        └── Identifier: b
+```
+
+### What it captures
+
+Structure — how the code is organized grammatically. It does NOT capture how data flows or what order things execute in.
+
+### Used in TemCon
+
+TemCon builds semantic change graphs based on ASTs of patch files to find fixing templates for concurrency bugs.
+
+### Used in VulGCL?
+
+Not directly. VulGCL uses the PDG (which is a richer graph built on top of the CFG and AST). But Joern uses the AST internally when it builds the PDG.
+
+---
+
+## 2. CFG — Control Flow Graph
+
+### What it is
+
+A CFG shows **what order code executes in**, including all possible branches.
+
+- Nodes = basic blocks (sequences of code with no branch in them)
+- Edges = "execution can go from here to there"
+
+### Example
+
+```c
+void check(int x) {
+    if (x > 0) {        // Block A
+        print("pos");   // Block B
+    } else {
+        print("neg");   // Block C
+    }
+    print("done");      // Block D
+}
+```
+
+CFG:
+```
+A → B → D
+A → C → D
+```
+
+### What it captures
+
+All execution paths through a function. Useful for understanding reachability — "can we ever reach this dangerous line of code?"
+
+---
+
+## 3. PDG — Program Dependency Graph
+
+### What it is
+
+A PDG combines two types of edges to capture **how statements depend on each other**:
+
+- **Data dependency edge**: "Statement B uses a value computed by statement A"
+- **Control dependency edge**: "Statement B only executes if the condition in statement A is true"
+
+### Example
+
+```c
+void copy(char *input) {
+    char buf[10];           // S1
+    int len = strlen(input); // S2  — data dependency on input (from parameter)
+    strcpy(buf, input);     // S3  — data dep on buf (S1), data dep on input
+}
+```
+
+PDG edges:
+```
+parameter:input → S2  (data: S2 reads input)
+parameter:input → S3  (data: S3 reads input)
+S1 → S3               (data: S3 writes into buf declared in S1)
+```
+
+### Why PDG for vulnerability detection?
+
+A **buffer overflow** happens when untrusted input flows into a memory operation without a bounds check. The PDG draws a direct arrow from `input → strcpy(buf, input)` with no check node in between. The model learns: "arrow from external input to unsafe memory function with no guard = suspicious."
+
+### PDG vs AST vs CFG
+
+| Graph | Captures | Misses |
+|-------|----------|--------|
+| AST | Grammatical structure | Execution order, data flow |
+| CFG | Execution order | Data dependencies |
+| PDG | Data + control dependencies | (Most complete for vulnerability analysis) |
+
+---
+
+## 4. Joern — The PDG Extraction Tool
+
+### What it is
+
+Joern is an open-source static analysis tool that reads C/C++ (and other languages) source code and automatically builds the PDG. You do not build the PDG by hand.
+
+### How it works (simplified)
+
+1. Parse source code → AST
+2. Build CFG from AST
+3. Compute data and control dependencies from CFG
+4. Output a Code Property Graph (CPG) — a supergraph that contains AST + CFG + PDG together
+
+### How you use it in VulGCL
+
+```bash
+joern --script extract_pdg.sc --param inputPath=function.c
+```
+
+It outputs nodes and edges as JSON or CSV. Your Python code then reads that and builds a PyTorch Geometric graph object.
+
+---
+
+## 5. GNN — Graph Neural Network
+
+### The problem GNN solves
+
+Standard neural networks (like CNNs or MLPs) work on fixed-size vectors or grids.
+Code represented as a graph has variable size and variable structure. You can't feed a graph into a regular neural network directly.
+
+### How GNN works: message passing
+
+Each node starts with a feature vector (e.g., an embedding of the statement text).
+
+Then, for several rounds:
+1. Each node **sends a message** to its neighbors (shares its current feature vector)
+2. Each node **aggregates** messages from all its neighbors
+3. Each node **updates** its own feature vector based on what it received
+
+After K rounds, each node's vector contains information from its K-hop neighborhood.
+
+### Example
+
+Node S3 (`strcpy(buf, input)`) after 2 rounds has seen:
+- Round 1: messages from S1 (buf), input parameter
+- Round 2: messages from S1's neighbors, input's callers...
+
+By the end, S3 "knows" that it receives data from an unchecked external input.
+
+### Readout
+
+After message passing, we need one vector for the whole graph (not one per node).
+We use **global mean pooling**: take the average of all node vectors.
+
+Result: one 256-dimensional vector **h_G** representing the whole function's graph structure.
+
+---
+
+## 6. GAT — Graph Attention Network
+
+### What makes it different from basic GNN
+
+In a basic GNN, every neighbor's message is weighted equally.
+In a **GAT**, the model learns **how much attention to pay** to each neighbor.
+
+### Intuition
+
+If node S3 (`strcpy`) has two incoming edges:
+- From S1 (`buf` declaration) — high relevance to the vulnerability
+- From some unrelated comment statement — low relevance
+
+GAT learns to give S1→S3 a high attention weight and ignore the irrelevant edge.
+
+### Formula (simplified)
+
+```
+attention(i→j) = softmax( LeakyReLU( a · [W·h_i || W·h_j] ) )
+
+new_h_j = ReLU( sum over i of: attention(i→j) × W·h_i )
+```
+
+- `W` = learnable weight matrix
+- `a` = learnable attention vector
+- `||` = concatenation
+- `softmax` = normalizes attention weights to sum to 1
+
+### Why GAT for VulGCL
+
+Vulnerability-relevant edges (e.g., direct input→unsafe-function) should dominate the signal. Attention lets the model learn which dependencies matter most, without us hard-coding it.
+
+---
+
+## 7. Graph Centrality Measures
+
+These are single numbers that describe how "important" or "central" a node is in a graph.
+VulGCL uses them to convert a PDG into an image (the image branch).
+
+### Degree Centrality
+
+> How many direct connections does this node have?
+
+```
+degree_centrality(v) = degree(v) / (N - 1)
+```
+
+A statement that many others depend on gets a high degree centrality.
+
+### Katz Centrality
+
+> How many paths reach this node, counting paths of all lengths (shorter paths weighted more)?
+
+A node that is reachable by many paths through the graph gets a high Katz score — even if it has few direct neighbors.
+
+### Closeness Centrality
+
+> How close is this node to all other nodes on average?
+
+```
+closeness_centrality(v) = (N - 1) / sum of shortest path lengths from v to all others
+```
+
+A central "hub" node that can reach everything quickly gets a high closeness score.
+
+### Why these three?
+
+These three together capture different aspects of a node's role in the graph:
+- Degree = local importance
+- Katz = global reachability
+- Closeness = positional centrality
+
+Vulnerability-related nodes (like a buffer that many paths write to) show up distinctively across all three measures. This is the VulCNN insight VulGCL builds on.
+
+### How they form an image
+
+If a function has N statements (nodes):
+- Sort nodes by their order in the code
+- For each node, you have 3 numbers (degree, Katz, closeness)
+- Arrange as a matrix: rows = nodes, columns = sorted neighbor list
+- Result: 3-channel matrix → treat like an RGB image → feed to CNN
+
+---
+
+## 8. CNN — Convolutional Neural Network
+
+### What it does
+
+A CNN scans an image with small filters (kernels) that learn to detect local patterns.
+
+- A 3×3 filter slides over the image
+- At each position it computes a dot product → detects whether that pattern is present
+- Multiple filters → detect multiple patterns
+- Pooling layers → reduce size, keep the strongest signal
+- Final layers → classify
+
+### Why it works for vulnerability images
+
+Vulnerability patterns (e.g., buffer overflow) create characteristic shapes in the centrality matrix:
+- A high-degree node (the vulnerable buffer) surrounded by many incoming edges
+- No intermediate "check" node reducing the centrality flow
+
+CNN learns to recognize these shapes, just like it recognizes edges in photos.
+
+### VulGCL image branch architecture
+
+```
+Input: 3-channel centrality matrix (like an RGB image)
+→ Conv2d(3, 32, kernel=3) + ReLU
+→ MaxPool2d(2)
+→ Conv2d(32, 64, kernel=3) + ReLU
+→ AdaptiveAvgPool2d(1)   ← collapses to a single vector regardless of input size
+→ Linear(64, 256)
+Output: h_I (256-dim)
+```
+
+`AdaptiveAvgPool` is important — functions have different numbers of statements (different image sizes), and this layer handles variable input sizes gracefully.
+
+---
+
+## 9. Transformer & BERT
+
+### The attention mechanism (core of Transformer)
+
+A Transformer processes a sequence of tokens (words or code subwords).
+At each layer, every token "looks at" every other token and decides how much to attend to it.
+
+```
+Attention(Q, K, V) = softmax( QK^T / √d_k ) · V
+```
+
+In plain English: token A asks "which other tokens are relevant to me?" and attends to them in proportion to their relevance. After many layers, each token has gathered context from the whole sequence.
+
+### BERT
+
+BERT = Bidirectional Encoder Representations from Transformers.
+
+Key properties:
+- Reads the whole sequence left-to-right AND right-to-left simultaneously (bidirectional)
+- Pretrained with masked language modeling: randomly hide 15% of tokens, predict them
+- 12 transformer layers, 768-dim hidden states, 125M parameters
+- Adds a special `[CLS]` token at position 0
+
+---
+
+## 10. CodeBERT & the [CLS] Token
+
+### What CodeBERT is
+
+CodeBERT is BERT fine-tuned on 6 million (code, documentation) pairs in 6 programming languages (Python, Java, JavaScript, PHP, Ruby, Go).
+
+It understands that:
+- `malloc` means memory allocation
+- `free` after `malloc` with no use is suspicious
+- `strcpy` copies without bounds checking
+
+This knowledge comes from its pretraining on paired code + natural language descriptions.
+
+### What [CLS] is
+
+When you tokenize a function and feed it to CodeBERT, you prepend a special `[CLS]` token:
+
+```
+Input: [CLS] void copy(char *input) { char buf[10]; strcpy(buf, input); }
+```
+
+After 12 transformer layers, the `[CLS]` token has attended to every other token.
+Its final 768-dimensional vector is the **summary of the whole function**.
+
+This is by design: BERT is trained so that `[CLS]` is useful for sequence-level classification tasks.
+
+### In VulGCL
+
+```python
+outputs = codebert(input_ids, attention_mask)
+cls_embedding = outputs.last_hidden_state[:, 0, :]  # shape: (batch, 768)
+h_L = self.projection(cls_embedding)                 # shape: (batch, 256)
+```
+
+`h_L` = what the function "means" semantically, in 256 numbers.
+
+### Why CodeBERT, not something else
+
+| Model | Why not |
+|-------|---------|
+| Plain BERT | Not pretrained on code — doesn't understand code semantics |
+| GraphCodeBERT | Also encodes data flow — overlaps with our graph branch |
+| CodeLlama (7B) | Too large to be one branch in a 3-branch fusion model |
+| CodeT5 | Encoder-decoder — harder to extract a single embedding |
+
+---
+
+## 11. Fine-tuning vs. Pre-training
+
+### Pre-training
+
+Training a model from scratch on a massive dataset. Microsoft pre-trained CodeBERT on 6 million examples over many days using hundreds of GPUs.
+
+**You do not do this.** It already happened. You just download the weights.
+
+### Fine-tuning
+
+Starting from pre-trained weights and continuing training on your smaller, task-specific dataset.
+
+In VulGCL, you fine-tune CodeBERT on Devign/BigVul (vulnerability labels).
+The model adapts from "general code understanding" to "vulnerability detection."
+
+**Cost:** A few hours on a T4 GPU. ¥10–50 on Aliyun.
+
+### Learning rates in VulGCL
+
+```yaml
+# For CodeBERT branch (pretrained weights — update carefully)
+learning_rate: 2.0e-5   # small — don't destroy what it already knows
+
+# For graph/image branches (random init — learn fast)
+learning_rate: 1.0e-4   # larger — these start from scratch
+```
+
+---
+
+## 12. Multimodal Fusion
+
+### What "multimodal" means
+
+Using multiple types of input (modes) at the same time. In VulGCL:
+
+| Mode | What it captures | Branch |
+|------|-----------------|--------|
+| Graph (PDG) | How data flows between statements | GAT → h_G |
+| Image (centrality matrix) | The topology/shape of the dependency graph | CNN → h_I |
+| Text (raw source code) | What the code semantically means | CodeBERT → h_L |
+
+### Why combine them?
+
+Each branch sees the same function but notices different things:
+
+- A buffer overflow: graph branch sees `input → strcpy` with no check
+- Image branch sees a high-degree node with a distinctive centrality pattern
+- LLM branch recognizes `strcpy` as semantically related to unsafe copying
+
+Together they are more robust — one branch might miss something the others catch.
+
+### Concatenation fusion
+
+```python
+fused = torch.cat([h_G, h_I, h_L], dim=-1)  # shape: (batch, 768)
+logit = classifier(fused)                     # shape: (batch, 1)
+```
+
+This is the simplest and most common fusion strategy. The MLP classifier learns how to weight the three sources of information.
+
+---
+
+## 13. Binary Classification & Sigmoid
+
+### The task
+
+Given a C/C++ function, predict: **vulnerable (1) or not vulnerable (0)?**
+
+This is binary classification — two possible outputs.
+
+### Sigmoid
+
+The classifier outputs a raw number (called a logit). Sigmoid squashes it to [0, 1]:
+
+```
+sigmoid(x) = 1 / (1 + e^(-x))
+```
+
+- Large positive logit → sigmoid ≈ 1.0 → "very likely vulnerable"
+- Large negative logit → sigmoid ≈ 0.0 → "very likely safe"
+- Logit near 0 → sigmoid ≈ 0.5 → "uncertain"
+
+### Loss function: Binary Cross-Entropy (BCE)
+
+```
+BCE = - [ y · log(p) + (1-y) · log(1-p) ]
+```
+
+- `y` = true label (0 or 1)
+- `p` = model's predicted probability
+
+BCE penalizes confident wrong predictions most heavily.
+
+### Evaluation metrics
+
+| Metric | Formula | What it tells you |
+|--------|---------|-------------------|
+| Accuracy | (TP+TN)/(all) | Overall correct rate — misleading on imbalanced data |
+| Precision | TP/(TP+FP) | Of all "vulnerable" predictions, how many were right? |
+| Recall | TP/(TP+FN) | Of all actual vulnerabilities, how many did we catch? |
+| F1 | 2·P·R/(P+R) | Harmonic mean of precision and recall — main metric |
+
+In vulnerability detection, **recall matters more than precision** — missing a real vulnerability (false negative) is worse than a false alarm.
+
+---
+
+## 14. Common Vulnerability Types
+
+These are what VulGCL is trained to detect.
+
+### Buffer Overflow
+
+```c
+char buf[10];
+strcpy(buf, user_input);  // user_input could be 100 bytes → overflow!
+```
+
+The write goes past the end of `buf`. Can overwrite return addresses → arbitrary code execution.
+
+**PDG signature:** data flows from external input → memory write operation, with no bounds check in between.
+
+### Use-After-Free (UAF)
+
+```c
+char *ptr = malloc(100);
+free(ptr);
+// ... later ...
+*ptr = 'A';  // UAF — ptr is freed but still used
+```
+
+The memory is freed but then accessed again. Can lead to information leaks or control flow hijacking.
+
+**PDG signature:** `free(ptr)` → `use(ptr)` data dependency with no re-allocation in between.
+
+### Null Pointer Dereference
+
+```c
+char *ptr = get_value();  // might return NULL
+*ptr = 'A';               // crash if ptr is NULL
+```
+
+**PDG signature:** return value flows to dereference with no null check.
+
+### Integer Overflow
+
+```c
+int size = user_len + 10;  // overflows if user_len is very large
+char *buf = malloc(size);  // allocates tiny buffer
+```
+
+Arithmetic wraps around, leading to a smaller-than-expected allocation, then overflow.
+
+---
+
+*Last updated: 2026. Part of the VulGCL research project, Yangzhou University.*
