@@ -18,42 +18,47 @@ Model code stubs      ✅
 References populated  ✅
 Concepts documented   ✅
 Professor pitched     ✅ (she wants to see more depth — this plan is the answer)
+Mid-term PPT created  ✅ (presentations/VulGCL_MidTerm_2026.pptx)
+Environment ready     ✅ torch 2.12.0 + PyG 2.7.0 + MPS on M1
 ```
 
 ---
 
-## Phase 1 — Environment Setup
+## Phase 1 — Environment Setup ✅ COMPLETE
 > Goal: everything installed and runnable on your machine
 
-- [ ] **1.1** Create and activate Python virtual environment
+- [x] **1.1** Create and activate Python virtual environment (.venv, Python 3.12)
+- [x] **1.2** Install PyTorch Geometric + torch-scatter + torch-sparse
   ```bash
-  python3 -m venv venv && source venv/bin/activate
-  pip install -r requirements.txt
+  # Correct command for torch 2.12.0:
+  pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
   ```
+- [x] **1.3** All packages verified:
+  - torch 2.12.0  |  MPS: True (M1 GPU acceleration active)
+  - torch-geometric 2.7.0
+  - torch-scatter 2.1.2, torch-sparse 0.6.18
+  - transformers 5.9.0, networkx 3.6.1
 
-- [ ] **1.2** Install PyTorch Geometric (needs special install command)
-  ```bash
-  pip install torch-geometric
-  pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
-  ```
-
-- [ ] **1.3** Install Joern (PDG extractor)
+- [ ] **1.4** Install Joern (PDG extractor) — do this when starting Phase 3
   ```bash
   # Download from https://github.com/joernio/joern/releases
-  # Extract and add to PATH
-  joern --version   # verify it works
+  # Extract and add to PATH, then: joern --version
   ```
 
-- [ ] **1.4** Verify CodeBERT downloads correctly
-  ```python
-  from transformers import AutoTokenizer, AutoModel
-  tok = AutoTokenizer.from_pretrained("microsoft/codebert-base")
-  print("CodeBERT OK")
-  ```
-
-- [ ] **1.5** Run the toy LLM branch test (proves you understand it)
+- [ ] **1.5** Verify CodeBERT downloads correctly (~500 MB, one-time)
   ```bash
-  python src/models/llm_branch.py   # if __main__ block exists, or write one
+  source .venv/bin/activate
+  python3 -c "
+  from transformers import AutoTokenizer, AutoModel
+  tok = AutoTokenizer.from_pretrained('microsoft/codebert-base')
+  mdl = AutoModel.from_pretrained('microsoft/codebert-base')
+  print('CodeBERT ready')
+  "
+  ```
+
+- [ ] **1.6** Run toy LLM branch test end-to-end (one real function → h_L vector)
+  ```bash
+  source .venv/bin/activate && python3 src/models/llm_branch.py
   ```
 
 ---
@@ -324,16 +329,16 @@ Run each baseline. Record F1 on Devign test set.
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Environment Setup | ⬜ Not started |
+| 1 | Environment Setup | ✅ Complete |
 | 2 | Get Datasets | ⬜ Not started |
 | 3 | PDG Extraction Pipeline | ⬜ Not started |
 | 4 | Full Data Pipeline | ⬜ Not started |
-| 5 | Verify Model Branches | ⬜ Not started |
+| 5 | Verify Model Branches | 🔄 In progress (LLM branch next) |
 | 6 | Training Infrastructure | ⬜ Not started |
 | 7 | Baseline Experiments | ⬜ Not started |
 | 8 | Full VulGCL Experiments | ⬜ Not started |
 | 9 | Edge Deployment | ⬜ Not started |
-| 10 | Write the Paper | ⬜ In progress |
+| 10 | Write the Paper | 🔄 In progress (~50% done) |
 | 11 | Supervisor Review | ⬜ Not started |
 | 12 | Submission | ⬜ Not started |
 
