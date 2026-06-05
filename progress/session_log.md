@@ -4,6 +4,37 @@ One entry per session. Most recent at the top.
 
 ---
 
+## 2026-06-06
+
+### What was done
+
+**Studied VulCNN open-source code** at `/Users/shay/Dev/research/external/VulCNN`
+- `ImageGeneration.py`: their image = centrality × sent2vec(statement) per node, not adjacency matrix
+- `joern_graph_gen.py`: 2-step pipeline (joern-parse → joern-export), silent `except: pass` on failures
+- Key finding: VulCNN never reports how many functions were excluded — a weakness we will improve on
+
+**Rewrote `src/data/pdg_to_image.py`** to match VulCNN's construction, upgraded with CodeBERT:
+- Old: adjacency matrix weighted by centrality (wrong — not what VulCNN does)
+- New: centrality × CodeBERT embedding per node — rows=statements, cols=embedding dims
+- Improvement over VulCNN: CodeBERT instead of sent2vec (richer semantic understanding of code)
+- Added `MAX_NODES=150` — functions above this are truncated to avoid memory crash
+  (the 1,763-line `transcode` function used 16GB RAM and took 22 min without this limit)
+- `node_embeddings` parameter: pass pre-computed embeddings from graph branch to avoid
+  running CodeBERT twice
+
+**Real Devign test (Phase 3.2):**
+- Vulnerable (FFmpeg r3d_read_rdvo, 62 nodes): all 3 branches ✅
+- Safe (vdadec_init): empty PDG — Apple VDA SDK types unresolvable by Joern ⚠️
+- Safe (transcode, 2067 nodes): worked but crashed RAM — triggers MAX_NODES filter ⚠️
+- Conclusion: need to measure Joern parse failure rate across full dataset before preprocessing
+
+### What is next
+- Run updated `pdg_to_image.py` and verify new images look better
+- Measure Joern parse failure rate on a 200-function sample
+- Write `src/data/dataset.py` — VulDataset class tying all three branches together
+
+---
+
 ## 2026-06-05
 
 ### What was done

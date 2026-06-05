@@ -21,7 +21,7 @@ Function (first 10 lines):
   
   ... (47 more lines)
 
-PDG Extraction (12.4s):
+PDG Extraction (14.7s):
   Nodes : 62
   Edges : 55
   Node list:
@@ -42,7 +42,7 @@ PDG Extraction (12.4s):
     [<operator>.postIncrement ] line= 23  code='i++'
     ... (47 more nodes)
 
-Graph Branch (6.1s):
+Graph Branch (21.0s):
   x shape         : [62, 768]  (nodes × 768)
   edge_index shape: [2, 55]
   y               : 1.0
@@ -73,7 +73,59 @@ Function (first 10 lines):
   
   ... (135 more lines)
 
-PDG Extraction (12.9s):
+PDG Extraction (14.9s):
   Nodes : 0
   Edges : 0
   WARNING: empty graph — Joern may not have parsed this function
+
+======================================================================
+Tag     : safe
+Label   : SAFE
+Project : FFmpeg  commit=321b2a9d
+Lines   : 1763
+Chars   : 36873
+Function (first 10 lines):
+  static int transcode(AVFormatContext **output_files,
+  
+                       int nb_output_files,
+  
+                       InputFile *input_files,
+  
+                       int nb_input_files,
+  
+                       StreamMap *stream_maps, int nb_stream_maps)
+  
+  ... (1753 more lines)
+
+PDG Extraction (22.0s):
+  Nodes : 2067
+  Edges : 4076
+  Node list:
+    [METHOD                   ] line=  1  code='transcode'
+    [METHOD_RETURN            ] line=  1  code='int'
+    [PARAM                    ] line=  1  code='AVFormatContext **output_files'
+    [PARAM                    ] line=  3  code='int nb_output_files'
+    [PARAM                    ] line=  5  code='InputFile *input_files'
+    [PARAM                    ] line=  7  code='int nb_input_files'
+    [PARAM                    ] line=  9  code='StreamMap *stream_maps'
+    [PARAM                    ] line=  9  code='int nb_stream_maps'
+    [<operator>.assignment    ] line= 13  code='ret = 0'
+    [<operator>.assignment    ] line= 13  code='nb_ostreams = 0'
+    [<operator>.assignment    ] line= 21  code='**ost_table = NULL'
+    [<operator>.assignment    ] line= 25  code='error[1024]'
+    [<operator>.assignment    ] line= 29  code='want_sdp = 1'
+    [<operator>.assignment    ] line= 31  code='no_packet[MAX_FILES]={0}'
+    [<operator>.assignment    ] line= 31  code='no_packet[MAX_FILES]={0}'
+    ... (2052 more nodes)
+
+Graph Branch (1332.3s):
+  x shape         : [2067, 768]  (nodes × 768)
+  edge_index shape: [2, 4076]
+  y               : 0.0
+  x[0,:5]         : [-0.09934201091527939, 0.33643972873687744, 0.026401838287711143, -0.03273165971040726, 0.054852768778800964]
+
+Image Branch (1.1s):
+  Image shape     : [3, 100, 100]  (3 × 100 × 100)
+  Degree    : min=0.000  max=0.032  mean=0.0000
+  Katz      : min=0.000  max=0.604  mean=0.0005
+  Closeness : min=0.000  max=0.104  mean=0.0001
