@@ -35,10 +35,11 @@ def extract_pdg(c_code: str, project_name: str = "tmp_func") -> nx.DiGraph:
         with open(c_file, "w") as f:
             f.write(c_code)
 
-        # Joern script: import → query PDG as DOT → exit
+        # Joern script: import → query only non-stub methods → exit
+        # isNotStub excludes built-in stubs like strcpy, <operator>, <global>
         script = textwrap.dedent(f"""
             importCode("{c_file}", "{project_name}")
-            val pdgs = cpg.method.dotPdg.l
+            val pdgs = cpg.method.isNotStub.dotPdg.l
             pdgs.foreach(println)
             exit
         """).strip()
@@ -56,21 +57,33 @@ def extract_pdg(c_code: str, project_name: str = "tmp_func") -> nx.DiGraph:
 
 
 def _parse_dot(dot_text: str) -> nx.DiGraph:
-    """Parse Joern's DOT-format PDG output into a networkx DiGraph."""
-    G = nx.DiGraph()
+    """
+    Parse Joern's DOT output. Handles multiple digraph blocks by returning
+    the one with the most nodes (= the user's function, not stubs).
+    """
+    # Split into individual digraph "name" { ... } blocks
+    blocks = re.split(r'(?=digraph\s+")', dot_text)
 
-    for m in _NODE_RE.finditer(dot_text):
-        nid = m.group(1)
-        ntype = html.unescape(m.group(2)).strip()
-        line = int(m.group(3))
-        code = html.unescape(m.group(4)).strip()
-        G.add_node(nid, type=ntype, line=line, code=code)
+    best = nx.DiGraph()
+    for block in blocks:
+        if "digraph" not in block:
+            continue
+        G = nx.DiGraph()
+        for m in _NODE_RE.finditer(block):
+            nid = m.group(1)
+            ntype = html.unescape(m.group(2)).strip()
+            line = int(m.group(3))
+            code = html.unescape(m.group(4)).strip()
+            G.add_node(nid, type=ntype, line=line, code=code)
+        for m in _EDGE_RE.finditer(block):
+            src, dst, var = m.group(1), m.group(2), m.group(3).strip()
+            # Only add edges between nodes we actually parsed (avoid bare nodes)
+            if src in G and dst in G:
+                G.add_edge(src, dst, var=var)
+        if G.number_of_nodes() > best.number_of_nodes():
+            best = G
 
-    for m in _EDGE_RE.finditer(dot_text):
-        src, dst, var = m.group(1), m.group(2), m.group(3).strip()
-        G.add_edge(src, dst, var=var)
-
-    return G
+    return best
 
 
 if __name__ == "__main__":
