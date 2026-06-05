@@ -1,0 +1,79 @@
+VulGCL Phase 3.2 — Real Devign Function Pipeline Test
+Date   : 2026-06-05
+Device : mps
+
+======================================================================
+Tag     : vuln
+Label   : VULNERABLE
+Project : FFmpeg  commit=aba232cf
+Lines   : 57
+Chars   : 981
+Function (first 10 lines):
+  static int r3d_read_rdvo(AVFormatContext *s, Atom *atom)
+  
+  {
+  
+      R3DContext *r3d = s->priv_data;
+  
+      AVStream *st = s->streams[0];
+  
+      int i;
+  
+  ... (47 more lines)
+
+PDG Extraction (12.4s):
+  Nodes : 62
+  Edges : 55
+  Node list:
+    [METHOD                   ] line=  1  code='r3d_read_rdvo'
+    [METHOD_RETURN            ] line=  1  code='int'
+    [PARAM                    ] line=  1  code='AVFormatContext *s'
+    [PARAM                    ] line=  1  code='Atom *atom'
+    [<operator>.assignment    ] line=  5  code='*r3d = s->priv_data'
+    [<operator>.assignment    ] line=  7  code='*st = s->streams[0]'
+    [<operator>.assignment    ] line= 13  code='r3d->video_offsets_count = (atom->size - 8) / 4'
+    [<operator>.assignment    ] line= 15  code='r3d->video_offsets = av_malloc(atom->size)'
+    [RETURN                   ] line= 55  code='return 0;'
+    [<operator>.division      ] line= 13  code='(atom->size - 8) / 4'
+    [av_malloc                ] line= 15  code='av_malloc(atom->size)'
+    [<operator>.logicalNot    ] line= 17  code='!r3d->video_offsets'
+    [<operator>.assignment    ] line= 23  code='i = 0'
+    [<operator>.lessThan      ] line= 23  code='i < r3d->video_offsets_count'
+    [<operator>.postIncrement ] line= 23  code='i++'
+    ... (47 more nodes)
+
+Graph Branch (6.1s):
+  x shape         : [62, 768]  (nodes × 768)
+  edge_index shape: [2, 55]
+  y               : 1.0
+  x[0,:5]         : [-0.12711724638938904, 0.325011670589447, -0.0031620264053344727, 0.03218116611242294, 0.011583909392356873]
+
+Image Branch (0.0s):
+  Image shape     : [3, 100, 100]  (3 × 100 × 100)
+  Degree    : min=0.000  max=1.000  mean=0.0068
+  Katz      : min=0.000  max=0.961  mean=0.0140
+  Closeness : min=0.000  max=0.830  mean=0.0044
+
+======================================================================
+Tag     : safe
+Label   : SAFE
+Project : FFmpeg  commit=973b1a6b
+Lines   : 145
+Chars   : 2221
+Function (first 10 lines):
+  static av_cold int vdadec_init(AVCodecContext *avctx)
+  
+  {
+  
+      VDADecoderContext *ctx = avctx->priv_data;
+  
+      struct vda_context *vda_ctx = &ctx->vda_ctx;
+  
+      OSStatus status;
+  
+  ... (135 more lines)
+
+PDG Extraction (12.9s):
+  Nodes : 0
+  Edges : 0
+  WARNING: empty graph — Joern may not have parsed this function
