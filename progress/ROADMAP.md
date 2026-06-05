@@ -63,28 +63,20 @@ Environment ready     ✅ torch 2.12.0 + PyG 2.7.0 + MPS on M1
 
 ---
 
-## Phase 2 — Get the Datasets
+## Phase 2 — Get the Datasets ✅ COMPLETE (Devign)
 > Goal: Devign and BigVul downloaded, split into train/val/test
 
-- [ ] **2.1** Download Devign dataset
-  - Source: https://sites.google.com/view/devign
-  - ~27K C functions, JSON format with labels
-  - Save to `data/devign/raw/`
+- [x] **2.1** Download Devign dataset via HuggingFace (DetectVul/devign)
+  - train: 21,854 | validation: 2,732 | test: 2,732 | total: 27,318
+  - Saved to `data/devign/raw/` as train.jsonl / validation.jsonl / test.jsonl
 
-- [ ] **2.2** Download BigVul dataset
-  - Source: https://github.com/ZeoVan/MSR_20_Code_vulnerability_V2.0
-  - ~188K C/C++ functions, CSV format
-  - Save to `data/bigvul/raw/`
+- [x] **2.2** Label distribution verified:
+  - Nearly balanced: ~45% vulnerable, ~55% safe — no class weighting needed
+  - `target` is bool (False/True) → must convert with `float(row['target'])` in dataset class
 
-- [ ] **2.3** Verify dataset files are in place
-  ```bash
-  ls data/devign/raw/
-  ls data/bigvul/raw/
-  ```
+- [ ] **2.3** Download BigVul — defer until Devign pipeline is fully working
 
-- [ ] **2.4** Write `src/data/dataset_stats.py` — print label distribution
-  - How many vulnerable vs. non-vulnerable in each dataset?
-  - Are they balanced? (Devign ≈ 45% vulnerable, BigVul ≈ 5% — very imbalanced)
+- [ ] **2.4** Write `src/data/dataset_stats.py` — proper stats script for the paper
 
 ---
 
