@@ -1,5 +1,5 @@
 """
-Generate Figure 1: VulGCL Architecture — Horizontal 3D-layer style
+Generate Figure 1: VulGCL Architecture — clean flat IEEE-style
 Output: docs/figures/fig1_architecture.png
 Run from project root: python docs/figures/gen_architecture.py
 """
@@ -8,339 +8,278 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import matplotlib.colors as mcolors
-import numpy as np
+import matplotlib.patheffects as pe
 
 # ── Canvas ────────────────────────────────────────────────────────────────────
-FIG_W, FIG_H = 22, 9.0
-C_BG     = "#F0F2F8"
-C_GRAPH  = "#1565C0"
-C_IMAGE  = "#2E7D32"
-C_LLM    = "#6A1B9A"
-C_FUSION = "#B71C1C"
-C_INPUT  = "#37474F"
-C_TITLE  = "#0D47A1"
+FIG_W, FIG_H = 18, 7.6
+plt.rcParams.update({
+    "font.family":  "DejaVu Sans",
+    "font.size":    9,
+})
 
-L_GRAPH  = "#DBEAFE"
-L_IMAGE  = "#DCFCE7"
-L_LLM    = "#EDE9FE"
-L_INPUT  = "#E2E8F0"
+C_IN     = "#37474F"   # input / joern / pdg
+C_G      = "#1565C0"   # graph branch
+C_I      = "#2E7D32"   # image branch
+C_L      = "#6A1B9A"   # llm branch
+C_F      = "#B71C1C"   # fusion
+
+BG_G     = "#E3F2FD"
+BG_I     = "#E8F5E9"
+BG_L     = "#F3E5F5"
+BG_F     = "#FFEBEE"
 
 fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
-fig.patch.set_facecolor(C_BG)
-ax.set_facecolor(C_BG)
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
 ax.set_xlim(0, FIG_W)
 ax.set_ylim(0, FIG_H)
 ax.axis("off")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def _dk(color, f):
-    return tuple(max(0., min(1., c * f)) for c in mcolors.to_rgb(color))
+def box(x, y, w, h, fc, ec, lw=1.4, rad=0.15, zo=4):
+    ax.add_patch(mpatches.FancyBboxPatch(
+        (x, y), w, h,
+        boxstyle=f"round,pad=0,rounding_size={rad}",
+        facecolor=fc, edgecolor=ec, linewidth=lw, zorder=zo,
+        clip_on=False))
 
-def arrow(x1, y1, x2, y2, col="#555", lw=1.7, ms=12, rad=0.0, zo=12):
+def label(x, y, top, bot=None, tc="white", fs=8.5, zo=10):
+    if bot:
+        ax.text(x, y + 0.14, top, ha="center", va="center",
+                fontsize=fs, fontweight="bold", color=tc, zorder=zo)
+        ax.text(x, y - 0.18, bot, ha="center", va="center",
+                fontsize=fs - 1.5, color=tc, alpha=0.90, zorder=zo)
+    else:
+        ax.text(x, y, top, ha="center", va="center",
+                fontsize=fs, fontweight="bold", color=tc, zorder=zo)
+
+def arr(x1, y1, x2, y2, col="#555", lw=1.6, ms=12, rad=0.0):
     ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
                 arrowprops=dict(arrowstyle="-|>", color=col, lw=lw,
                                 mutation_scale=ms,
-                                connectionstyle=f"arc3,rad={rad}"), zorder=zo)
-
-def rbox(x, y, w, h, fc, ec, lw=1.5, zo=3, rad=0.12):
-    ax.add_patch(mpatches.FancyBboxPatch(
-        (x, y), w, h, boxstyle=f"round,pad=0,rounding_size={rad}",
-        facecolor=fc, edgecolor=ec, linewidth=lw, zorder=zo))
-
-def txt(x, y, s, c="#1a1a1a", fs=8.5, fw="normal",
-        ha="center", va="center", zo=15, it=False):
-    ax.text(x, y, s, color=c, fontsize=fs, fontweight=fw,
-            ha=ha, va=va, zorder=zo, style="italic" if it else "normal")
-
-
-def box3d(x, y, w, h, color, dx=0.20, dy=0.13, zo=5,
-          label=None, sub=None, lc="white", lfs=7.5):
-    """
-    3D perspective box: front face + right side face + top face.
-    (x, y) = bottom-left of front face.
-    dx/dy = depth direction (upper-right).
-    """
-    ec     = _dk(color, 0.45)
-    right_c = _dk(color, 0.62)
-    top_c   = _dk(color, 0.77)
-
-    # Right face (parallelogram)
-    ax.add_patch(mpatches.Polygon([
-        [x+w,    y],
-        [x+w+dx, y+dy],
-        [x+w+dx, y+h+dy],
-        [x+w,    y+h],
-    ], closed=True, facecolor=right_c, edgecolor=ec, lw=0.65, zorder=zo))
-
-    # Top face (parallelogram)
-    ax.add_patch(mpatches.Polygon([
-        [x,      y+h],
-        [x+w,    y+h],
-        [x+w+dx, y+h+dy],
-        [x+dx,   y+h+dy],
-    ], closed=True, facecolor=top_c, edgecolor=ec, lw=0.65, zorder=zo))
-
-    # Front face
-    ax.add_patch(mpatches.Polygon([
-        [x,   y],
-        [x+w, y],
-        [x+w, y+h],
-        [x,   y+h],
-    ], closed=True, facecolor=color, edgecolor=ec, lw=1.05, zorder=zo+1))
-
-    # Labels
-    if label:
-        ty = y + h/2 + (0.11 if sub else 0)
-        ax.text(x+w/2, ty, label, ha="center", va="center",
-                fontsize=lfs, color=lc, fontweight="bold", zorder=zo+2)
-    if sub:
-        ax.text(x+w/2, y+h/2-0.19, sub, ha="center", va="center",
-                fontsize=lfs-1.3, color=lc, alpha=0.88, zorder=zo+2)
-
-
-# ── Title strip ───────────────────────────────────────────────────────────────
-ax.axhspan(8.35, 9.0, color="#E8EAF6", zorder=0)
-ax.axhline(8.35, color="#9FA8DA", lw=1.3)
-txt(FIG_W/2, 8.72,
-    "VulGCL: Multimodal C/C++ Vulnerability Detection Framework",
-    c=C_TITLE, fs=14.5, fw="bold")
-txt(FIG_W/2, 8.46,
-    "Graph (structural topology)  ·  Image (visual centrality pattern)  ·  "
-    "LLM (semantic PDG slice)  →  Late fusion",
-    c="#3949AB", fs=8.5, it=True)
+                                connectionstyle=f"arc3,rad={rad}"),
+                zorder=12)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# LEFT COLUMN — Input + Joern + PDG
+# LEFT COLUMN — C/C++ Function, Joern, PDG
 # ═══════════════════════════════════════════════════════════════════════════════
 # C/C++ function box
-rbox(0.2, 4.3, 1.9, 3.6, L_INPUT, C_INPUT, lw=1.8, zo=4)
-txt(1.15, 7.55, "C / C++",    c=C_INPUT, fs=9.5, fw="bold")
-txt(1.15, 7.22, "Function",   c=C_INPUT, fs=9.5, fw="bold")
+box(0.15, 4.1,  2.0, 3.1, "#ECEFF1", C_IN, lw=1.6)
+ax.text(1.15, 6.90, "C / C++ Function", ha="center", va="center",
+        fontsize=9.5, fontweight="bold", color=C_IN, zorder=10)
 code_lines = [
-    "void foo(char *s,",
-    "        int n) {",
+    "void foo(char *s, int n) {",
     "  char buf[10];",
-    "  int l=strlen(s);",
-    "  memcpy(buf,s,l);",  # ← vulnerable
+    "  int  l = strlen(s);",
+    "  memcpy(buf, s, l);",   # vulnerable
     "  return buf[n];",
     "}",
 ]
 for i, line in enumerate(code_lines):
-    col = "#C62828" if "memcpy" in line else "#546E7A"
-    fw  = "bold"   if "memcpy" in line else "normal"
-    ax.text(0.32, 6.82 - i*0.34, line, color=col, fontsize=5.6,
-            fontfamily="monospace", va="center", fontweight=fw, zorder=6)
+    col = "#C62828" if "memcpy" in line else "#455A64"
+    bold = "bold" if "memcpy" in line else "normal"
+    ax.text(0.30, 6.45 - i * 0.37, line,
+            fontfamily="monospace", fontsize=6.0, color=col,
+            fontweight=bold, va="center", zorder=10)
+
+# Arrow C → Joern
+arr(1.15, 4.10, 1.15, 3.60, col=C_IN)
 
 # Joern box
-rbox(0.2, 1.9, 1.9, 2.05, L_INPUT, C_INPUT, lw=1.8, zo=4)
-txt(1.15, 3.55, "Joern",           c=C_INPUT, fs=9.5, fw="bold")
-txt(1.15, 3.22, "Static Analysis", c=C_INPUT, fs=7.5)
-txt(1.15, 2.95, "PDG Extraction",  c=C_INPUT, fs=7.5)
-txt(1.15, 2.65, ".sc → DOT",       c=C_INPUT, fs=7.0)
-txt(1.15, 2.32, "Unique workspace", c=C_INPUT, fs=6.5)
-arrow(1.15, 4.3, 1.15, 3.97, col=C_INPUT)
+box(0.15, 2.25, 2.0, 1.30, "#ECEFF1", C_IN, lw=1.6)
+label(1.15, 3.03, "Joern", "Static Analysis", tc=C_IN, fs=9)
+ax.text(1.15, 2.52, "PDG Extraction  ·  DOT output",
+        ha="center", va="center", fontsize=6.8, color=C_IN, zorder=10)
+
+# Arrow Joern → PDG
+arr(1.15, 2.25, 1.15, 1.82, col=C_IN)
 
 # PDG box
-rbox(2.45, 2.8, 1.75, 2.2, L_INPUT, C_INPUT, lw=1.8, zo=4)
-txt(3.33, 4.65, "PDG",         c=C_INPUT, fs=10, fw="bold")
-txt(3.33, 4.32, "Program",     c=C_INPUT, fs=7.5)
-txt(3.33, 4.06, "Dependency",  c=C_INPUT, fs=7.5)
-txt(3.33, 3.80, "Graph",       c=C_INPUT, fs=7.5)
-
-# Mini PDG graph inside box
-node_pos = [(2.7,3.4),(3.1,3.4),(3.5,3.4),(2.9,3.05),(3.3,3.05),(3.1,2.72)]
-for nx_, ny_ in node_pos:
-    ax.add_patch(plt.Circle((nx_, ny_), 0.11, color=C_INPUT, zorder=7))
-for s, t in [(0,3),(1,3),(1,4),(2,4),(3,5),(4,5)]:
-    x1, y1 = node_pos[s]; x2, y2 = node_pos[t]
-    ax.annotate("", xy=(x2, y2+0.11), xytext=(x1, y1-0.11),
-                arrowprops=dict(arrowstyle="-|>", color=C_INPUT,
-                                lw=0.7, mutation_scale=5), zorder=6)
-
-arrow(2.12, 2.9, 2.42, 3.2, col=C_INPUT, lw=1.5)
+box(0.15, 0.85, 2.0, 0.95, "#ECEFF1", C_IN, lw=1.6)
+label(1.15, 1.32, "PDG", tc=C_IN, fs=10)
+ax.text(1.15, 1.05, "Program Dependency Graph",
+        ha="center", va="center", fontsize=6.8, color=C_IN, zorder=10)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# BRANCH BACKGROUND STRIPS
+# THREE BRANCH BACKGROUNDS
 # ═══════════════════════════════════════════════════════════════════════════════
-BSTRIP_X0 = 4.4
-BSTRIP_X1 = 15.8
+BRANCH_X0 = 2.55
+BRANCH_X1 = 14.30
 
-branch_meta = [
-    # y0,  y1,  light_bg,  branch_color, branch_name
-    (5.65, 8.25, L_GRAPH, C_GRAPH, "Graph\nBranch"),
-    (2.90, 5.40, L_IMAGE, C_IMAGE, "Image\nBranch"),
-    (0.30, 2.65, L_LLM,   C_LLM,  "LLM\nBranch"),
+branch_bg = [
+    (5.10, 7.55, BG_G, C_G, "Graph\nBranch"),
+    (2.60, 5.00, BG_I, C_I, "Image\nBranch"),
+    (0.10, 2.50, BG_L, C_L, "LLM\nBranch"),
 ]
-
-for y0, y1, lbg, col, name in branch_meta:
-    rbox(BSTRIP_X0, y0, BSTRIP_X1 - BSTRIP_X0, y1 - y0,
-         lbg, col, lw=1.1, zo=1, rad=0.25)
-    txt(BSTRIP_X0 - 0.65, (y0+y1)/2, name, c=col, fs=8.5, fw="bold")
+for y0, y1, bg, ec, name in branch_bg:
+    box(BRANCH_X0, y0, BRANCH_X1 - BRANCH_X0, y1 - y0,
+        bg, ec, lw=1.0, rad=0.22, zo=1)
+    ax.text(BRANCH_X0 - 0.08, (y0 + y1) / 2, name,
+            ha="right", va="center", fontsize=8.5, fontweight="bold",
+            color=ec, zorder=10, linespacing=1.5)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# BRANCH 3D BOXES
+# PDG → BRANCH FORK ARROWS
 # ═══════════════════════════════════════════════════════════════════════════════
-# Each branch: 4 processing boxes, side by side, with 3D tilt effect
-# Box dimensions: w=1.75, h=1.55, gap=0.35 between boxes
-
-BW  = 1.75   # box width
-BH  = 1.55   # box height
-GAP = 0.38   # gap between boxes
-DX  = 0.20   # 3D depth x
-DY  = 0.13   # 3D depth y
-
-# X positions for the 4 boxes in each branch
-box_xs = [BSTRIP_X0 + 0.25 + i*(BW + GAP) for i in range(4)]
-# => approx: 4.65, 6.78, 8.91, 11.04
-
-# ── Graph Branch (y center = 6.95, box bottom = 6.175) ───────────────────────
-GY = 5.65 + (8.25 - 5.65)/2 - BH/2   # vertically centered in strip
-graph_boxes = [
-    (C_GRAPH, "CodeBERT",    "node embed"),
-    (_dk(C_GRAPH, 0.82), "GAT Layer 1", "8 heads"),
-    (_dk(C_GRAPH, 0.67), "GAT Layer 2", "8 heads"),
-    (_dk(C_GRAPH, 0.55), "Global\nMean Pool", "→ 256-dim"),
+PDG_TIP_X = 2.18
+PDG_MID_Y = 1.33
+branch_mid_ys = [
+    (5.10 + 7.55) / 2,   # graph
+    (2.60 + 5.00) / 2,   # image
+    (0.10 + 2.50) / 2,   # llm
 ]
-for i, (col, lbl, sub) in enumerate(graph_boxes):
-    box3d(box_xs[i], GY, BW, BH, col, dx=DX, dy=DY, zo=5+i,
-          label=lbl, sub=sub)
-    if i < 3:
-        arrow(box_xs[i]+BW+DX*0.4, GY+BH/2+DY*0.3,
-              box_xs[i+1]-0.01, GY+BH/2,
-              col=C_GRAPH, lw=1.4, ms=9)
+for (_, _, _, ec, _), bmy in zip(branch_bg, branch_mid_ys):
+    arr(PDG_TIP_X, PDG_MID_Y, BRANCH_X0 + 0.05, bmy, col=ec, lw=1.5, ms=10)
 
-# ── Image Branch (y center = 4.15, box bottom = 3.375) ───────────────────────
-IY = 2.90 + (5.40 - 2.90)/2 - BH/2
-image_boxes = [
-    (C_IMAGE, "3-ch Image",   "100 × 100"),
-    (_dk(C_IMAGE, 0.82), "Conv 1-2",    "ReLU + BN"),
-    (_dk(C_IMAGE, 0.67), "Conv 3-5",    "ReLU + BN"),
-    (_dk(C_IMAGE, 0.55), "Global\nAvg Pool", "→ 256-dim"),
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROCESSING BOXES INSIDE EACH BRANCH
+# ═══════════════════════════════════════════════════════════════════════════════
+BW   = 1.92   # box width
+BH   = 1.58   # box height
+GAP  = 0.38   # horizontal gap
+
+box_xs = [BRANCH_X0 + 0.32 + i * (BW + GAP) for i in range(4)]
+
+def branch_row(y0, y1, color, items):
+    """Draw 4 processing boxes in a branch strip + inter-box arrows."""
+    cy = (y0 + y1) / 2
+    by = cy - BH / 2
+    for i, (top, bot) in enumerate(items):
+        fc = color
+        # gradient: darken each successive box slightly
+        import matplotlib.colors as mc
+        rgb = mc.to_rgb(color)
+        fade = tuple(min(1.0, c + (1 - c) * i * 0.18) for c in rgb)
+        box(box_xs[i], by, BW, BH, fade, color, lw=1.3, zo=4)
+        label(box_xs[i] + BW / 2, by + BH / 2, top, bot, tc="white", fs=8.5)
+        if i < 3:
+            arr(box_xs[i] + BW + 0.02, by + BH / 2,
+                box_xs[i + 1] - 0.04, by + BH / 2,
+                col=color, lw=1.5, ms=9)
+    return by + BH / 2   # return y center of last box
+
+graph_items = [
+    ("CodeBERT", "node embed"),
+    ("GAT Layer 1", "4 heads"),
+    ("GAT Layer 2", "4 heads"),
+    ("Mean Pool", "→ 256-dim"),
 ]
-for i, (col, lbl, sub) in enumerate(image_boxes):
-    box3d(box_xs[i], IY, BW, BH, col, dx=DX, dy=DY, zo=5+i,
-          label=lbl, sub=sub)
-    if i < 3:
-        arrow(box_xs[i]+BW+DX*0.4, IY+BH/2+DY*0.3,
-              box_xs[i+1]-0.01, IY+BH/2,
-              col=C_IMAGE, lw=1.4, ms=9)
-
-# ── LLM Branch (y center = 1.475, box bottom = 0.70) ─────────────────────────
-LY = 0.30 + (2.65 - 0.30)/2 - BH/2
-llm_boxes = [
-    (C_LLM, "PDG Slice",     "top-10 stmts"),
-    (_dk(C_LLM, 0.82), "BPE Tokens",    "max 512"),
-    (_dk(C_LLM, 0.67), "CodeBERT",      "RoBERTa-base"),
-    (_dk(C_LLM, 0.55), "Linear\nProj.", "768 → 256"),
+image_items = [
+    ("3-ch Image", "100 × 100"),
+    ("Conv 1–2", "ReLU + BN"),
+    ("Conv 3–5", "ReLU + BN"),
+    ("Avg Pool", "→ 256-dim"),
 ]
-for i, (col, lbl, sub) in enumerate(llm_boxes):
-    box3d(box_xs[i], LY, BW, BH, col, dx=DX, dy=DY, zo=5+i,
-          label=lbl, sub=sub)
-    if i < 3:
-        arrow(box_xs[i]+BW+DX*0.4, LY+BH/2+DY*0.3,
-              box_xs[i+1]-0.01, LY+BH/2,
-              col=C_LLM, lw=1.4, ms=9)
+llm_items = [
+    ("PDG Slice", "top-10 stmts"),
+    ("BPE Tokens", "max 512"),
+    ("CodeBERT", "RoBERTa-base"),
+    ("Linear", "768 → 256"),
+]
 
-# ── PDG → branch fork arrows ──────────────────────────────────────────────────
-PDG_TIP = 4.22   # right edge of PDG box (approx 2.45+1.75+some)
-for (y0, y1, col) in [
-    (5.65, 8.25, C_GRAPH),
-    (2.90, 5.40, C_IMAGE),
-    (0.30, 2.65, C_LLM),
+gy = branch_row(5.10, 7.55, C_G, graph_items)
+iy = branch_row(2.60, 5.00, C_I, image_items)
+ly = branch_row(0.10, 2.50, C_L, llm_items)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OUTPUT VECTOR LABELS
+# ═══════════════════════════════════════════════════════════════════════════════
+VEC_X = box_xs[3] + BW + 0.18
+
+for col, vy, lbl in [
+    (C_G, gy, "h_G ∈ ℝ²⁵⁶"),
+    (C_I, iy, "h_I ∈ ℝ²⁵⁶"),
+    (C_L, ly, "h_L ∈ ℝ²⁵⁶"),
 ]:
-    branch_y = (y0 + y1) / 2
-    arrow(PDG_TIP, 3.9, box_xs[0] - 0.04, branch_y,
-          col=col, lw=1.6, ms=11, rad=0.0)
+    # arrow from last branch box to vector label
+    arr(box_xs[3] + BW + 0.02, vy, VEC_X + 0.12, vy, col=col, lw=1.4, ms=9)
+    ax.text(VEC_X + 0.15, vy, lbl,
+            ha="left", va="center", fontsize=8.5, fontweight="bold", color=col,
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
+                      edgecolor=col, linewidth=1.2),
+            zorder=14)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# OUTPUT VECTORS + DIM TAGS
+# CONCAT BOX
 # ═══════════════════════════════════════════════════════════════════════════════
-LAST_BOX_END = box_xs[3] + BW + DX + 0.05   # right edge of last 3D box
-VEC_X  = LAST_BOX_END + 0.55
-TAG_X  = VEC_X + 0.12
+CAT_X = VEC_X + 1.52
+CAT_W = 1.42
+CAT_Y = 1.80
+CAT_H = 3.80
 
-branch_ys = {
-    "graph": (5.65 + 8.25) / 2,
-    "image": (2.90 + 5.40) / 2,
-    "llm":   (0.30 + 2.65) / 2,
-}
-vec_colors = {"graph": C_GRAPH, "image": C_IMAGE, "llm": C_LLM}
-vec_labels = {"graph": "h_G ∈ ℝ²⁵⁶", "image": "h_I ∈ ℝ²⁵⁶", "llm": "h_L ∈ ℝ²⁵⁶"}
+box(CAT_X, CAT_Y, CAT_W, CAT_H, BG_F, C_F, lw=2.0, rad=0.18, zo=5)
+ax.text(CAT_X + CAT_W / 2, CAT_Y + CAT_H - 0.38,
+        "Concat", ha="center", va="center",
+        fontsize=10, fontweight="bold", color=C_F, zorder=12)
+ax.text(CAT_X + CAT_W / 2, CAT_Y + CAT_H / 2 + 0.12,
+        "[ h_G\n  h_I\n  h_L ]",
+        ha="center", va="center", fontsize=9.5, color=C_F,
+        fontweight="bold", linespacing=1.7, zorder=12)
+ax.text(CAT_X + CAT_W / 2, CAT_Y + 0.30,
+        "∈ ℝ⁷⁶⁸", ha="center", va="center",
+        fontsize=8, color=C_F, zorder=12)
 
-for branch, by in branch_ys.items():
-    col = vec_colors[branch]
-    arrow(box_xs[3]+BW+DX*0.4, by+BH/2-0.4,   # approximate center of last box
-          VEC_X - 0.05, by,
-          col=col, lw=1.5, ms=10)
-    ax.text(TAG_X, by, vec_labels[branch],
-            color=col, fontsize=8, fontweight="bold", ha="left", va="center",
-            bbox=dict(boxstyle="round,pad=0.28", facecolor="white",
-                      edgecolor=col, linewidth=1.3), zorder=16)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CONCATENATE BOX
-# ═══════════════════════════════════════════════════════════════════════════════
-CAT_X = TAG_X + 1.45
-CAT_Y = 2.3
-CAT_W = 1.55
-CAT_H = 3.8
-
-rbox(CAT_X, CAT_Y, CAT_W, CAT_H, "#FFEBEE", C_FUSION, lw=2.0, zo=4, rad=0.18)
-txt(CAT_X + CAT_W/2, CAT_Y + CAT_H - 0.42, "Concat",    c=C_FUSION, fs=9.5, fw="bold")
-txt(CAT_X + CAT_W/2, CAT_Y + CAT_H/2 + 0.05,
-    "[h_G\n h_I\n h_L]", c=C_FUSION, fs=8.5, fw="bold")
-txt(CAT_X + CAT_W/2, CAT_Y + 0.35, "∈ ℝ⁷⁶⁸", c=C_FUSION, fs=7.5)
-
-for branch, by in branch_ys.items():
-    col = vec_colors[branch]
-    arrow(TAG_X + 1.35, by, CAT_X + 0.01, CAT_Y + CAT_H/2,
-          col=col, lw=1.3, ms=9)
+for col, vy in [(C_G, gy), (C_I, iy), (C_L, ly)]:
+    arr(VEC_X + 1.45, vy, CAT_X + 0.02, CAT_Y + CAT_H / 2,
+        col=col, lw=1.3, ms=9)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MLP CLASSIFIER
 # ═══════════════════════════════════════════════════════════════════════════════
-MLP_X = CAT_X + CAT_W + 0.7
-MLP_Y = 3.2
-MLP_W = 1.95
-MLP_H = 2.5
+MLP_X = CAT_X + CAT_W + 0.55
+MLP_W = 1.85
+MLP_Y = 2.55
+MLP_H = 2.35
 
-box3d(MLP_X, MLP_Y, MLP_W, MLP_H, C_FUSION, dx=0.25, dy=0.16, zo=6,
-      label="MLP", sub=None)
-txt(MLP_X + MLP_W/2, MLP_Y + MLP_H/2 + 0.28, "MLP",       c="white", fs=10, fw="bold")
-txt(MLP_X + MLP_W/2, MLP_Y + MLP_H/2 - 0.05, "768→256→1", c="white", fs=7.5)
-txt(MLP_X + MLP_W/2, MLP_Y + MLP_H/2 - 0.38, "Sigmoid",   c="white", fs=7.0)
+box(MLP_X, MLP_Y, MLP_W, MLP_H, C_F, C_F, lw=1.8, rad=0.18, zo=5)
+label(MLP_X + MLP_W / 2, MLP_Y + MLP_H / 2 + 0.20,
+      "MLP", "768 → 256 → 1", tc="white", fs=10)
+ax.text(MLP_X + MLP_W / 2, MLP_Y + 0.35,
+        "Sigmoid", ha="center", va="center",
+        fontsize=8, color="white", alpha=0.90, zorder=12)
 
-arrow(CAT_X + CAT_W, CAT_Y + CAT_H/2,
-      MLP_X - 0.01, MLP_Y + MLP_H/2,
-      col=C_FUSION, lw=2.2, ms=13)
+arr(CAT_X + CAT_W + 0.02, CAT_Y + CAT_H / 2,
+    MLP_X - 0.02, MLP_Y + MLP_H / 2,
+    col=C_F, lw=2.0, ms=13)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OUTPUT LABELS
 # ═══════════════════════════════════════════════════════════════════════════════
-OUT_X = MLP_X + MLP_W + DX + 0.55
-MID_Y = MLP_Y + MLP_H/2
+OUT_X  = MLP_X + MLP_W + 0.22
+MID_Y  = MLP_Y + MLP_H / 2
 
-arrow(MLP_X + MLP_W + 0.25, MID_Y, OUT_X - 0.1, MID_Y + 1.0,
-      col="#B71C1C", lw=1.8, ms=11)
-arrow(MLP_X + MLP_W + 0.25, MID_Y, OUT_X - 0.1, MID_Y - 1.0,
-      col="#1B5E20", lw=1.8, ms=11)
+arr(MLP_X + MLP_W + 0.02, MID_Y,
+    OUT_X + 0.12, MID_Y + 1.10, col="#C62828", lw=1.8, ms=11)
+arr(MLP_X + MLP_W + 0.02, MID_Y,
+    OUT_X + 0.12, MID_Y - 1.10, col="#1B5E20", lw=1.8, ms=11)
 
-ax.text(OUT_X, MID_Y + 1.0, "Vulnerable",
-        color="#B71C1C", fontsize=11, fontweight="bold", va="center", zorder=16)
-ax.text(OUT_X, MID_Y - 1.0, "Safe",
-        color="#1B5E20", fontsize=11, fontweight="bold", va="center", zorder=16)
+ax.text(OUT_X + 0.15, MID_Y + 1.10, "Vulnerable",
+        ha="left", va="center", fontsize=11, fontweight="bold",
+        color="#C62828", zorder=14)
+ax.text(OUT_X + 0.15, MID_Y - 1.10, "Safe",
+        ha="left", va="center", fontsize=11, fontweight="bold",
+        color="#1B5E20", zorder=14)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIGURE TITLE
+# ═══════════════════════════════════════════════════════════════════════════════
+ax.text(FIG_W / 2, 7.40,
+        "Fig. 1. VulGCL: Three-Branch Multimodal Vulnerability Detection Framework",
+        ha="center", va="center", fontsize=10.5, fontweight="bold",
+        color="#212121", zorder=16)
 
 
 # ── Save ──────────────────────────────────────────────────────────────────────
 out = "docs/figures/fig1_architecture.png"
-fig.savefig(out, dpi=180, bbox_inches="tight", facecolor=C_BG)
+fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
 print(f"Saved: {out}")
