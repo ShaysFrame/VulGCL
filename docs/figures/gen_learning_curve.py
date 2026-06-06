@@ -1,0 +1,65 @@
+"""
+Generate training learning curve from Kaggle epoch results.
+Run: python docs/figures/gen_learning_curve.py
+Output: docs/figures/learning_curve_codebert.png
+"""
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import numpy as np
+
+# ── Results logged from Kaggle output (update as more epochs finish) ──────────
+epochs = [1, 2, 3, 4]
+train_loss = [0.6524, 0.6103, 0.5562, 0.4940]
+val_f1     = [0.3170, 0.5843, 0.5465, 0.5634]
+val_auc    = [0.6612, 0.7059, 0.7256, 0.7151]
+
+best_epoch = val_f1.index(max(val_f1)) + 1
+best_f1    = max(val_f1)
+best_auc   = val_auc[val_f1.index(max(val_f1))]
+
+# ── Plot ──────────────────────────────────────────────────────────────────────
+fig = plt.figure(figsize=(12, 4.5))
+fig.suptitle("VulGCL — Baseline CodeBERT Training (Devign, Full Dataset)\n"
+             "Kaggle 2× T4 GPU | fp16 | AdamW lr=2e-5 / 2e-4 | batch=32",
+             fontsize=11, y=1.01)
+
+gs = gridspec.GridSpec(1, 3, figure=fig, wspace=0.35)
+
+ax1 = fig.add_subplot(gs[0])
+ax2 = fig.add_subplot(gs[1])
+ax3 = fig.add_subplot(gs[2])
+
+# Loss
+ax1.plot(epochs, train_loss, "o-", color="#2196F3", linewidth=2, markersize=6, label="Train loss")
+ax1.set_xlabel("Epoch"); ax1.set_ylabel("BCE Loss")
+ax1.set_title("Training Loss"); ax1.grid(True, alpha=0.3)
+ax1.set_xticks(epochs)
+
+# Val F1
+ax2.plot(epochs, val_f1, "s-", color="#4CAF50", linewidth=2, markersize=6, label="Val F1")
+ax2.axhline(y=0.65, color="gray", linestyle="--", alpha=0.5, label="Target (0.65)")
+ax2.scatter([best_epoch], [best_f1], s=120, color="gold", zorder=5,
+            edgecolors="#333", linewidth=1.5, label=f"Best F1={best_f1:.4f}")
+ax2.set_xlabel("Epoch"); ax2.set_ylabel("F1 Score")
+ax2.set_title("Validation F1"); ax2.legend(fontsize=8); ax2.grid(True, alpha=0.3)
+ax2.set_ylim(0.25, 0.75); ax2.set_xticks(epochs)
+
+# Val AUC
+ax3.plot(epochs, val_auc, "D-", color="#FF5722", linewidth=2, markersize=6, label="Val AUC-ROC")
+ax3.set_xlabel("Epoch"); ax3.set_ylabel("AUC-ROC")
+ax3.set_title("Validation AUC-ROC"); ax3.grid(True, alpha=0.3)
+ax3.set_ylim(0.60, 0.80); ax3.set_xticks(epochs)
+
+# Status annotation
+note = (f"Status: Epoch 5/20 running\n"
+        f"Best so far: F1={best_f1:.4f}  AUC={best_auc:.4f}  (ep {best_epoch})\n"
+        f"Est. final F1: 0.64–0.68  |  ~18 min remaining")
+fig.text(0.5, -0.04, note, ha="center", fontsize=9,
+         bbox=dict(boxstyle="round,pad=0.4", facecolor="#FFF9C4", edgecolor="#F9A825"))
+
+fig.tight_layout()
+fig.savefig("docs/figures/learning_curve_codebert.png", dpi=150, bbox_inches="tight")
+print("Saved: docs/figures/learning_curve_codebert.png")
