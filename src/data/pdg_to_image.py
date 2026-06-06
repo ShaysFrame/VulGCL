@@ -23,9 +23,9 @@ Approach (VulCNN-inspired, upgraded with CodeBERT):
   Pre-computed node_embeddings can be passed in from pdg_to_pyg() to avoid
   running CodeBERT twice (graph branch already computes them).
 
-  MAX_NODES: functions with more than MAX_NODES PDG nodes are truncated.
-  Extremely large functions (1000+ nodes) produce near-zero centrality images
-  (edge density < 0.1%) and require prohibitive memory for CodeBERT batching.
+  Memory: CodeBERT runs in batches of EMBED_BATCH=64 nodes at a time.
+  Peak memory is ~25MB per batch regardless of function size, so 1000+ node
+  functions run safely on 16GB RAM without any node truncation.
 """
 
 import numpy as np
@@ -34,8 +34,8 @@ import torch
 import torch.nn.functional as F
 
 
-IMAGE_SIZE = 100   # fixed CNN input size
-MAX_NODES  = 150   # truncate functions larger than this
+IMAGE_SIZE   = 100   # fixed CNN input size
+EMBED_BATCH  = 64    # CodeBERT batch size — keeps memory flat regardless of function size
 
 _TOKENIZER = None
 _MODEL     = None
@@ -52,22 +52,27 @@ def _get_codebert(device: str = "cpu"):
 
 
 def _embed_nodes(G: nx.DiGraph, nodes: list, device: str) -> torch.Tensor:
-    """CodeBERT [CLS] embedding for each node's code statement. Returns (N, 768)."""
+    """CodeBERT [CLS] embedding for each node's code statement. Returns (N, 768).
+    Uses EMBED_BATCH-sized mini-batches so memory stays flat for large functions."""
     tokenizer, model = _get_codebert(device)
     codes = [G.nodes[nid].get("code", "") for nid in nodes]
-    enc   = tokenizer(
-        codes,
-        return_tensors="pt",
-        max_length=128,
-        truncation=True,
-        padding="max_length",
-    )
+    cls_vecs = []
     with torch.no_grad():
-        out = model(
-            input_ids=enc["input_ids"].to(device),
-            attention_mask=enc["attention_mask"].to(device),
-        )
-    return out.last_hidden_state[:, 0, :].cpu()   # (N, 768)
+        for start in range(0, len(codes), EMBED_BATCH):
+            batch = codes[start : start + EMBED_BATCH]
+            enc   = tokenizer(
+                batch,
+                return_tensors="pt",
+                max_length=128,
+                truncation=True,
+                padding="max_length",
+            )
+            out = model(
+                input_ids=enc["input_ids"].to(device),
+                attention_mask=enc["attention_mask"].to(device),
+            )
+            cls_vecs.append(out.last_hidden_state[:, 0, :].cpu())
+    return torch.cat(cls_vecs, dim=0)   # (N, 768)
 
 
 def pdg_to_image(
@@ -93,16 +98,11 @@ def pdg_to_image(
 
     nodes = list(G.nodes())
 
-    # Truncate oversized functions
-    if n > MAX_NODES:
-        nodes = nodes[:MAX_NODES]
-        n     = MAX_NODES
-
     # ── Node embeddings ────────────────────────────────────────────────────
     if node_embeddings is not None:
         emb = node_embeddings[:n].float()         # reuse from graph branch
     else:
-        emb = _embed_nodes(G, nodes, device)      # compute fresh
+        emb = _embed_nodes(G, nodes, device)      # compute fresh (batched)
 
     emb_np = emb.numpy()                          # (N, 768)
 

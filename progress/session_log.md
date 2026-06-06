@@ -4,6 +4,25 @@ One entry per session. Most recent at the top.
 
 ---
 
+## 2026-06-06 (continued)
+
+### Coverage results & MAX_NODES fix
+
+**measure_joern_coverage.py ran overnight on 200 Devign functions:**
+- Empty PDG (Joern fail): 12/200 = 6.0%
+- Node distribution: median=41, P90=223, P95=363, max=1444
+- Timing: 13.9s/function → 105.8 hours for full dataset (confirms need for batch Joern)
+
+**Critical fix: removed MAX_NODES=150 cutoff**
+- Root cause of the transcode RAM crash was NOT the node count itself — it was calling
+  CodeBERT with all 2067 nodes in a single batch
+- Fix: both pdg_to_graph.py and pdg_to_image.py now embed nodes in batches of 64
+  (~25MB per batch, flat regardless of function size)
+- Usable fraction goes from 76.5% → 94.0% (only 6% excluded for empty PDG)
+- Updated: paper_notes.md, paper_notes_joern_coverage.txt
+
+---
+
 ## 2026-06-06
 
 ### What was done

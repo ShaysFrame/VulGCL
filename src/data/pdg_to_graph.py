@@ -51,21 +51,25 @@ def pdg_to_pyg(
     # Collect statement text for each node
     codes = [G.nodes[nid].get("code", "") for nid in nodes]
 
-    # Tokenize all statements in one batch
-    encoding = tokenizer(
-        codes,
-        return_tensors="pt",
-        max_length=128,      # statements are short — 128 is enough
-        truncation=True,
-        padding="max_length",
-    )
-    input_ids      = encoding["input_ids"].to(device)
-    attention_mask = encoding["attention_mask"].to(device)
-
+    # Embed in batches of 64 so large functions (1000+ nodes) don't OOM
+    EMBED_BATCH = 64
+    cls_vecs = []
     with torch.no_grad():
-        out = model(input_ids=input_ids, attention_mask=attention_mask)
-        # [CLS] token embedding for each statement
-        x = out.last_hidden_state[:, 0, :]   # shape: (num_nodes, 768)
+        for start in range(0, len(codes), EMBED_BATCH):
+            batch_codes = codes[start : start + EMBED_BATCH]
+            enc = tokenizer(
+                batch_codes,
+                return_tensors="pt",
+                max_length=128,
+                truncation=True,
+                padding="max_length",
+            )
+            out = model(
+                input_ids=enc["input_ids"].to(device),
+                attention_mask=enc["attention_mask"].to(device),
+            )
+            cls_vecs.append(out.last_hidden_state[:, 0, :].cpu())
+    x = torch.cat(cls_vecs, dim=0)   # shape: (num_nodes, 768)
 
     # Build edge_index
     edges = list(G.edges())

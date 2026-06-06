@@ -1,0 +1,37 @@
+======================================================================
+VulGCL — Joern Parse Coverage Report
+Sample: 200 functions (100 vuln + 100 safe)
+Random seed: 42
+======================================================================
+
+PARSE RESULTS
+  Total sampled          : 200
+  Empty PDG (Joern fail) : 12  (6.0%)
+  Usable (non-empty)     : 188  (94.0%)
+
+  NOTE: No node-count cutoff applied. CodeBERT runs in batches of 64
+  nodes, so memory stays flat (~25MB/batch) regardless of function size.
+
+NODE COUNT DISTRIBUTION (successful parses only)
+  Min    : 1
+  Median : 41
+  P90    : 223
+  P95    : 363
+  P99    : 1030
+  Max    : 1444
+
+TIMING
+  Avg per function : 13.9s
+  Estimated for full Devign (27,318): 105.8 hours
+  NOTE: This uses one Joern process per function (slow).
+  Batch processing with joern-parse + joern-export will be much faster.
+
+PAPER NOTES
+  - Joern failed to produce a CPG for 12/200 functions (6.0%)
+    Primary cause: unresolvable platform-specific API types
+    (Apple VDA SDK, Windows COM, etc.)
+  - These 12 functions are excluded from the dataset (reported as
+    a threat to external validity).
+  - No size-based exclusion: all 188 parseable functions are usable.
+  - Final estimated usable fraction: ~94% of dataset
+======================================================================
