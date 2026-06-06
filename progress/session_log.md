@@ -4,6 +4,34 @@ One entry per session. Most recent at the top.
 
 ---
 
+## 2026-06-06 (continued — presentation prep + training progress)
+
+### What was done
+
+**Kaggle training — baseline_codebert (full Devign, 2× T4, fp16):**
+- Epoch 1: loss=0.6524, val_F1=0.3170, val_AUC=0.6612
+- Epoch 2: loss=0.6103, val_F1=0.5843, val_AUC=0.7059 ← best F1 so far
+- Epoch 3: loss=0.5562, val_F1=0.5465, val_AUC=0.7256
+- Epoch 4: loss=0.4940, val_F1=0.5634, val_AUC=0.7151
+- Still running (epoch 5+ in progress)
+- Loss consistently decreasing → model learning correctly
+- Expected final F1: 0.64–0.68
+
+**Created supervisor presentation:**
+- `progress/presentation_2026-06-06.md` — full progress update for LiLi Bo
+- Sections: architecture, implementation status, current results, comparison table, next steps, open questions
+
+**Generated learning curve figure:**
+- `docs/figures/gen_learning_curve.py` — matplotlib script
+- `docs/figures/learning_curve_codebert.png` — 3-panel plot (loss, F1, AUC)
+
+### What is next
+- Wait for Kaggle training to complete. Download `test_results.json` from Output panel.
+- Record final F1 in paper_notes.md and ROADMAP Phase 7.1
+- Write `src/data/preprocess.py` for batch Joern preprocessing (Phase 4.2)
+
+---
+
 ## 2026-06-06 (continued — Phase 6 training infrastructure)
 
 ### What was done
