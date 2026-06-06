@@ -5,19 +5,15 @@ import os
 import re
 import subprocess
 import tempfile
-import textwrap
 import networkx as nx
 
 
-JOERN_WORKSPACE = os.environ.get(
-    "JOERN_WORKSPACE",
-    os.path.expanduser("~/Dev/research/workspace")
-)
-os.makedirs(JOERN_WORKSPACE, exist_ok=True)
-
-# Regex patterns for Joern's DOT output
+# Joern v2.0.406 DOT format:
+#   node: "8" [label = <(METHOD,foo)<SUB>1</SUB>> ]
+#   stub: "46" [label = <(METHOD,strlen)> ]        (no <SUB> line number)
+#   edge: "13" -> "20"  [ label = "DDG: x"]
 _NODE_RE = re.compile(
-    r'"(\d+)"\s+\[label\s*=\s*<([^,<>]+),\s*(\d+)<BR/>([^>]*)>\s*\]'
+    r'"(\d+)"\s*\[label\s*=\s*<\(([^,]+),(.+?)\)(?:<SUB>(\d+)</SUB>)?>\s*\]'
 )
 _EDGE_RE = re.compile(
     r'"(\d+)"\s*->\s*"(\d+)"\s*\[\s*label\s*=\s*"DDG:\s*([^"]*)"\s*\]'
@@ -28,65 +24,69 @@ def extract_pdg(c_code: str, project_name: str = "tmp_func") -> nx.DiGraph:
     """
     Given a C function as a string, run Joern and return its PDG as a DiGraph.
 
+    Uses joern-parse + joern-export (Joern v2.x API).
     Node attributes : type (str), line (int), code (str)
     Edge attributes : var  (str)  — variable carrying the dependency
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        c_file = os.path.join(tmpdir, "func.c")
-        sc_file = os.path.join(tmpdir, "extract.sc")
+        c_file  = os.path.join(tmpdir, "func.c")
+        cpg_file = os.path.join(tmpdir, "cpg.bin")
+        out_dir  = os.path.join(tmpdir, "pdg_out")  # joern-export creates this
 
         with open(c_file, "w") as f:
             f.write(c_code)
 
-        # Joern script: import → query only non-stub methods → exit
-        # isNotStub excludes built-in stubs like strcpy, <operator>, <global>
-        script = textwrap.dedent(f"""
-            importCode("{c_file}", "{project_name}")
-            val pdgs = cpg.method.isNotStub.dotPdg.l
-            pdgs.foreach(println)
-            exit
-        """).strip()
-        with open(sc_file, "w") as f:
-            f.write(script)
-
-        result = subprocess.run(
-            ["joern", "--script", sc_file],
-            capture_output=True,
-            text=True,
-            timeout=180,
+        # Step 1: parse C file → CPG binary
+        r1 = subprocess.run(
+            ["joern-parse", c_file, "--output", cpg_file],
+            capture_output=True, text=True, timeout=180,
         )
+        if r1.returncode != 0 or not os.path.exists(cpg_file):
+            return nx.DiGraph()
 
-    return _parse_dot(result.stdout)
+        # Step 2: export PDG as DOT files (one file per method)
+        r2 = subprocess.run(
+            ["joern-export", "--repr", "pdg", "--out", out_dir, cpg_file],
+            capture_output=True, text=True, timeout=180,
+        )
+        if not os.path.exists(out_dir):
+            return nx.DiGraph()
 
-
-def _parse_dot(dot_text: str) -> nx.DiGraph:
-    """
-    Parse Joern's DOT output. Handles multiple digraph blocks by returning
-    the one with the most nodes (= the user's function, not stubs).
-    """
-    # Split into individual digraph "name" { ... } blocks
-    blocks = re.split(r'(?=digraph\s+")', dot_text)
-
-    best = nx.DiGraph()
-    for block in blocks:
-        if "digraph" not in block:
-            continue
-        G = nx.DiGraph()
-        for m in _NODE_RE.finditer(block):
-            nid = m.group(1)
-            ntype = html.unescape(m.group(2)).strip()
-            line = int(m.group(3))
-            code = html.unescape(m.group(4)).strip()
-            G.add_node(nid, type=ntype, line=line, code=code)
-        for m in _EDGE_RE.finditer(block):
-            src, dst, var = m.group(1), m.group(2), m.group(3).strip()
-            # Only add edges between nodes we actually parsed (avoid bare nodes)
-            if src in G and dst in G:
-                G.add_edge(src, dst, var=var)
-        if G.number_of_nodes() > best.number_of_nodes():
-            best = G
+        # Step 3: parse all DOT files, return the largest user-code graph
+        # User functions have <SUB>line</SUB> tags; stubs do not
+        best = nx.DiGraph()
+        for fname in os.listdir(out_dir):
+            if not fname.endswith(".dot"):
+                continue
+            with open(os.path.join(out_dir, fname)) as f:
+                dot_text = f.read()
+            G = _parse_dot_file(dot_text)
+            has_lines     = any(G.nodes[n].get("line", 0) > 0 for n in G.nodes)
+            best_has_lines = any(best.nodes[n].get("line", 0) > 0 for n in best.nodes)
+            if has_lines and (not best_has_lines or G.number_of_nodes() > best.number_of_nodes()):
+                best = G
 
     return best
+
+
+def _parse_dot_file(dot_text: str) -> nx.DiGraph:
+    G = nx.DiGraph()
+    for m in _NODE_RE.finditer(dot_text):
+        nid   = m.group(1)
+        ntype = html.unescape(m.group(2)).strip()
+        code  = html.unescape(m.group(3)).strip()
+        line  = int(m.group(4)) if m.group(4) else 0
+        G.add_node(nid, type=ntype, line=line, code=code)
+    for m in _EDGE_RE.finditer(dot_text):
+        src, dst, var = m.group(1), m.group(2), m.group(3).strip()
+        if src in G and dst in G:
+            G.add_edge(src, dst, var=var)
+    return G
+
+
+# Alias for backwards compatibility
+def _parse_dot(dot_text: str) -> nx.DiGraph:
+    return _parse_dot_file(dot_text)
 
 
 if __name__ == "__main__":

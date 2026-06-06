@@ -39,8 +39,9 @@
 
 **Headline:** Undetected vulnerabilities in C/C++ code cause catastrophic real-world damage
 
-- 25,226 new CVEs reported in 2023 — a 15% increase from 2022
-- C/C++ accounts for ~70% of critical memory-safety vulnerabilities (Microsoft, Google data)
+- 48,448 CVEs reported in 2025 — and 2026 has already hit 29,609 in just 6 months (source: CVEdetails.com)
+- CVE volume has grown 7× since 2016 — the problem is accelerating, not slowing down
+- ~70% of Microsoft's CVEs and ~70% of Chrome's security bugs are memory safety issues — both written in C/C++ (Microsoft Security Response Center 2019; Google Project Zero 2020)
 - Real examples: Heartbleed (OpenSSL), EternalBlue — all missed by automated tools
 - Manual review cannot scale: Linux kernel alone has 27 million lines of C code
 
