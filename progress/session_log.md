@@ -4,6 +4,42 @@ One entry per session. Most recent at the top.
 
 ---
 
+## 2026-06-06 (continued — Phase 6 training infrastructure)
+
+### What was done
+
+**Wrote Phase 4.1: `src/data/dataset.py`**
+- VulDataset class: mode="llm_only" (no Joern, just tokenize text) and mode="full" (future)
+- frac parameter: take any fraction of train split (frac=0.1 for prototype)
+
+**Wrote Phase 6.1: `src/training/train.py`**
+- Reads YAML config via --config argument
+- LLMClassifier: LLMBranch (CodeBERT → 256-dim) + dropout + Linear(256,1)
+- AdamW: encoder lr=2e-5, projection+head lr=2e-4 (backbone vs head separation)
+- BCEWithLogitsLoss, grad clipping at 1.0
+- Saves best checkpoint by val F1 to experiments/checkpoints/{name}/best.pt
+- Saves epoch log to logs/{name}/train_log.txt
+- Saves final test metrics to experiments/results/{name}/metrics.json
+
+**Wrote Phase 6.2: `src/training/evaluate.py`**
+- Stand-alone eval script: --config + optional --checkpoint
+- Reports F1, Accuracy, Precision, Recall, AUC-ROC
+
+**Wrote `experiments/configs/prototype_codebert.yaml`**
+- frac=0.1 (2,185 train functions), 3 epochs — quick design validation
+
+**Updated ROADMAP**: Phases 2, 3, 6 marked complete; Phase 7 is next
+
+### What is next
+Run the prototype:
+```bash
+source .venv/bin/activate
+python src/training/train.py --config experiments/configs/prototype_codebert.yaml
+```
+This answers the reviewers' question: does the design work at all before investing in the full pipeline?
+
+---
+
 ## 2026-06-06 (continued)
 
 ### Coverage results & MAX_NODES fix

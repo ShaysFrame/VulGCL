@@ -1,0 +1,20 @@
+name: prototype_codebert
+description: "LLM-only baseline on 10% of Devign — quick design validation before full run"
+
+model:
+  llm:
+    hidden_dim: 256
+    model_name: microsoft/codebert-base
+  dropout: 0.3
+
+training:
+  epochs: 3
+  batch_size: 16
+  learning_rate: 2.0e-5
+  weight_decay: 1.0e-4
+  seed: 42
+
+data:
+  dataset: devign
+  frac: 0.1          # 10% of train set (~2185 functions)
+  max_seq_len: 512

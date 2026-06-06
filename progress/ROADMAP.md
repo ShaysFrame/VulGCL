@@ -83,43 +83,40 @@ Environment ready     ✅ torch 2.12.0 + PyG 2.7.0 + MPS on M1
 ## Phase 3 — PDG Extraction Pipeline
 > Goal: given a C function, extract its PDG as a graph object
 
-- [ ] **3.1** Write `src/data/build_pdg.py`
-  - Input: path to a `.c` file with one function
-  - Run Joern on it
-  - Parse Joern's output (nodes + edges JSON)
-  - Return: networkx graph object
+- [x] **3.1** Write `src/data/build_pdg.py`
+  - Joern .sc file approach (stdin pipe was unreliable)
+  - Returns networkx DiGraph; node attrs: type, line, code; edge attr: var
+  - Uses `cpg.method.isNotStub.dotPdg.l` to exclude stubs
 
-- [ ] **3.2** Test on one real Devign function
-  - Pick any vulnerable function from the dataset
-  - Extract its PDG
-  - Print: number of nodes, number of edges
-  - Visualize with matplotlib (optional but impressive to show professor)
+- [x] **3.2** Test on one real Devign function
+  - Tested on FFmpeg vulnerable function: 62 nodes, 55 edges ✅
+  - Empty PDG rate on 200 sample: 6.0% (platform-specific API failures)
+  - Saved report to docs/figures/phase32_report.txt
 
-- [ ] **3.3** Write `src/data/pdg_to_graph.py`
-  - Convert networkx PDG → PyTorch Geometric `Data` object
-  - Node features: CodeBERT embedding of the statement text (768-dim)
-  - This feeds into the graph branch
+- [x] **3.3** Write `src/data/pdg_to_graph.py`
+  - Node features: CodeBERT [CLS] per statement, batched in groups of 64
+  - Batching keeps memory flat (~25MB/batch) regardless of function size
 
-- [ ] **3.4** Write `src/data/pdg_to_image.py`
-  - Input: networkx PDG
-  - Compute: degree centrality, Katz centrality, closeness centrality per node
-  - Build: 3-channel centrality matrix
-  - Resize to fixed size (e.g., 100×100) for CNN
-  - Output: numpy array of shape (3, 100, 100)
+- [x] **3.4** Write `src/data/pdg_to_image.py`
+  - VulCNN approach: centrality × CodeBERT embedding per node
+  - 3 channels: degree, closeness, Katz centrality
+  - Resize (3, N, 768) → (3, 100, 100) bilinear
+  - CodeBERT also batched in groups of 64 — no node count limit
 
-- [ ] **3.5** Test image conversion on the same function from 3.2
-  - Visualize all 3 channels as grayscale images
-  - Do they look different from each other? (They should)
+- [x] **3.5** Coverage measurement on 200 Devign functions
+  - Empty PDG: 6.0% | Usable: 94.0%
+  - Median nodes: 41 | P90: 223 | Max: 1444
+  - Report: progress/paper_notes_joern_coverage.txt
 
 ---
 
 ## Phase 4 — Full Data Pipeline
 > Goal: one script that reads Devign → outputs ready-to-train tensors
 
-- [ ] **4.1** Write `src/data/dataset.py`
-  - Class `VulDataset(torch.utils.data.Dataset)`
-  - `__getitem__` returns: `(graph, image, input_ids, attention_mask, label)`
-  - Handle caching: PDG extraction is slow, cache results to disk
+- [x] **4.1** Write `src/data/dataset.py`
+  - mode="llm_only": returns (input_ids, attention_mask, label) — no Joern needed
+  - mode="full": returns all five tensors — requires Phase 4.2 cache
+  - frac parameter for prototype runs (e.g. frac=0.1 = 10% of train)
 
 - [ ] **4.2** Write `src/data/preprocess.py`
   - Run full preprocessing on Devign (all 27K functions)
@@ -168,20 +165,20 @@ Environment ready     ✅ torch 2.12.0 + PyG 2.7.0 + MPS on M1
 ## Phase 6 — Training Infrastructure
 > Goal: a training loop that saves checkpoints and logs metrics
 
-- [ ] **6.1** Write `src/training/train.py`
-  - Load config from YAML
-  - Build model + optimizer + scheduler
-  - Training loop with loss logging
-  - Save best checkpoint (based on val F1)
+- [x] **6.1** Write `src/training/train.py`
+  - Reads YAML config, supports --config argument
+  - AdamW with separate LRs: CodeBERT backbone (2e-5) vs head (2e-4)
+  - Saves best checkpoint to experiments/checkpoints/{name}/best.pt
+  - Saves epoch log to logs/{name}/train_log.txt
 
-- [ ] **6.2** Write `src/training/evaluate.py`
-  - Load checkpoint
-  - Run on test set
-  - Report: Accuracy, Precision, Recall, F1, AUC
+- [x] **6.2** Write `src/training/evaluate.py`
+  - --config + optional --checkpoint arguments
+  - Reports F1, Accuracy, Precision, Recall, AUC-ROC
+  - Saves JSON to experiments/results/{name}/metrics.json
 
-- [ ] **6.3** Test training loop on tiny subset (500 samples)
-  - Does it run for 2 epochs without crashing?
-  - Does loss go down?
+- [ ] **6.3** Test training loop on prototype (10% data, 3 epochs)
+  - Run: python src/training/train.py --config experiments/configs/prototype_codebert.yaml
+  - Does loss go down? Does val F1 improve?
 
 ---
 
@@ -322,12 +319,12 @@ Run each baseline. Record F1 on Devign test set.
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Environment Setup | ✅ Complete |
-| 2 | Get Datasets | ⬜ Not started |
-| 3 | PDG Extraction Pipeline | ⬜ Not started |
-| 4 | Full Data Pipeline | ⬜ Not started |
-| 5 | Verify Model Branches | 🔄 In progress (LLM branch next) |
-| 6 | Training Infrastructure | ⬜ Not started |
-| 7 | Baseline Experiments | ⬜ Not started |
+| 2 | Get Datasets | ✅ Complete (Devign) |
+| 3 | PDG Extraction Pipeline | ✅ Complete |
+| 4 | Full Data Pipeline | 🔄 In progress (4.1 done, 4.2 pending) |
+| 5 | Verify Model Branches | 🔄 In progress (LLM verified, graph/image pending) |
+| 6 | Training Infrastructure | ✅ Complete (train.py + evaluate.py written) |
+| 7 | Baseline Experiments | 🔄 Next — run prototype_codebert first |
 | 8 | Full VulGCL Experiments | ⬜ Not started |
 | 9 | Edge Deployment | ⬜ Not started |
 | 10 | Write the Paper | 🔄 In progress (~50% done) |
