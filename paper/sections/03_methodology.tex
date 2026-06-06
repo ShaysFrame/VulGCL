@@ -3,107 +3,150 @@
 
 \subsection{Overview}
 
-Given a source code function $f$, VulGCL produces a binary label
-$\hat{y} \in \{0,1\}$ (non-vulnerable / vulnerable) by fusing three
-independently computed representations:
+Given a C/C++ function $f$, VulGCL produces a binary vulnerability label
+$\hat{y} \in \{0,1\}$ by fusing three independently derived representations:
 
 \begin{equation}
-\hat{y} = \text{Classifier}\bigl(
-  \mathbf{h}_G \,\|\, \mathbf{h}_I \,\|\, \mathbf{h}_L
-\bigr)
+\hat{y} = \sigma\!\left(
+  \text{MLP}\!\left(\mathbf{h}_G \,\|\, \mathbf{h}_I \,\|\, \mathbf{h}_L\right)
+\right)
 \end{equation}
 
-where $\mathbf{h}_G$, $\mathbf{h}_I$, $\mathbf{h}_L$ are the graph, image, and
-LLM branch embeddings respectively, and $\|$ denotes concatenation.
+where $\mathbf{h}_G \in \mathbb{R}^{256}$, $\mathbf{h}_I \in \mathbb{R}^{256}$,
+and $\mathbf{h}_L \in \mathbb{R}^{256}$ are the graph, image, and LLM branch
+embeddings respectively, and $\|$ denotes vector concatenation.
+Each branch derives its input from a different structural view of the same
+Program Dependency Graph, ensuring the three representations carry complementary
+rather than redundant information. Figure~\ref{fig:architecture} illustrates
+the full pipeline.
 
+% ── PDG Extraction ────────────────────────────────────────────────────────────
 \subsection{PDG Extraction}
 \label{sec:pdg}
 
-We parse each function using Joern~\cite{joern} to extract its Program
-Dependency Graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$, where each node
-$v \in \mathcal{V}$ represents a code statement and each edge
-$e \in \mathcal{E}$ represents a data or control dependency between statements.
-Node features are initialized as the sentence embedding of the corresponding
-code statement using CodeBERT tokenization.
+We parse each function using Joern~\cite{joern2014}, an open-source static
+analysis framework, to extract its Program Dependency Graph
+$\mathcal{G} = (\mathcal{V}, \mathcal{E})$. Each node $v_i \in \mathcal{V}$
+represents a single code statement; each directed edge
+$e_{ij} \in \mathcal{E}$ encodes a data or control dependency from statement
+$i$ to statement $j$, annotated with the variable $\phi_{ij}$ carrying the
+dependency. Joern handles real-world C/C++ constructs including macros,
+typedefs, and platform-specific APIs. All three branches derive their inputs
+from $\mathcal{G}$, as described below.
 
+% ── Graph Branch ──────────────────────────────────────────────────────────────
 \subsection{Graph Branch ($\mathbf{h}_G$)}
 \label{sec:graph_branch}
 
-% TODO: describe GNN architecture (GCN / GAT / GIN — decide after ablation)
-The PDG $\mathcal{G}$ is passed through $L$ layers of a Graph Attention Network
-(GAT):
+The graph branch captures the \emph{structural dependency topology} of the
+function---which statements affect which others, and through which variables.
 
+\paragraph{Node features.}
+Each node $v_i$ is initialized with a 768-dimensional CodeBERT
+embedding~\cite{codebert} of its code statement:
+$\mathbf{x}_i = \text{CodeBERT}(v_i.\text{code})[\texttt{CLS}] \in \mathbb{R}^{768}$.
+These embeddings are shared with the image branch
+(Section~\ref{sec:image_branch}), so CodeBERT runs \emph{once} per function
+during preprocessing.
+
+\paragraph{Graph Attention Network.}
+The node feature matrix $\mathbf{X} \in \mathbb{R}^{|\mathcal{V}| \times 768}$
+is passed through two layers of a Graph Attention Network
+(GAT)~\cite{gat2018}, a GNN variant that learns per-edge attention weights
+rather than treating all neighbors equally. This is important for PDG-based
+vulnerability detection: not all data dependencies carry equal risk, and
+attention allows the model to focus on the most dangerous dependency paths.
+Each attention head computes:
 \begin{equation}
-\mathbf{h}_G = \text{Readout}\Bigl(\text{GAT}^{(L)}(\mathcal{G})\Bigr)
+\alpha_{ij} = \frac{
+  \exp\!\left(\text{LeakyReLU}\!\left(\mathbf{a}^\top
+    [\mathbf{W}\mathbf{x}_i \,\|\, \mathbf{W}\mathbf{x}_j]\right)\right)
+}{
+  \sum_{k \in \mathcal{N}(i)} \exp\!\left(\text{LeakyReLU}\!\left(\mathbf{a}^\top
+    [\mathbf{W}\mathbf{x}_i \,\|\, \mathbf{W}\mathbf{x}_k]\right)\right)
+}
+\end{equation}
+We use 4 attention heads, hidden dimension 256, and global mean pooling:
+\begin{equation}
+\mathbf{h}_G = \text{MeanPool}\!\left(\text{GAT}^{(2)}(\mathbf{X},\,\mathcal{E})\right)
+\in \mathbb{R}^{256}
 \end{equation}
 
-Global mean pooling is used as the readout function.
-
+% ── Image Branch ──────────────────────────────────────────────────────────────
 \subsection{Image Branch ($\mathbf{h}_I$)}
 \label{sec:image_branch}
 
-Following VulCNN~\cite{vulcnn}, we encode each node $v$ in the PDG as a
-sentence vector $\mathbf{s}_v \in \mathbb{R}^d$ (sent2vec), then weight each
-row by three centrality measures computed on the PDG:
+The image branch encodes the \emph{visual structural pattern} of the function
+as a three-channel matrix image, inspired by VulCNN~\cite{vulcnn2022}. Our
+key improvement over VulCNN is replacing sent2vec with CodeBERT node embeddings,
+enabling richer code semantics in the visual representation.
 
-\begin{itemize}
-  \item Channel 1: Degree centrality $\kappa_{\text{deg}}(v)$
-  \item Channel 2: Katz centrality $\kappa_{\text{katz}}(v)$
-  \item Channel 3: Closeness centrality $\kappa_{\text{clo}}(v)$
-\end{itemize}
-
-The result is a three-channel image $\mathbf{I} \in \mathbb{R}^{N \times d \times 3}$
-passed to a CNN:
-
+\paragraph{Centrality-weighted image construction.}
+For each node $v_i$, we compute three PDG centrality scores:
+degree centrality $\kappa_{\text{deg}}(v_i)$,
+Katz centrality $\kappa_{\text{katz}}(v_i)$, and
+closeness centrality $\kappa_{\text{clo}}(v_i)$.
+The three-channel image is constructed as:
 \begin{equation}
-\mathbf{h}_I = \text{CNN}(\mathbf{I})
+\mathbf{I}_{i,\cdot,c} = \kappa_c(v_i) \cdot \mathbf{x}_i,
+\quad c \in \{1,2,3\}
+\end{equation}
+where $\mathbf{x}_i \in \mathbb{R}^{768}$ is the shared CodeBERT node
+embedding. The tensor
+$\mathbf{I} \in \mathbb{R}^{|\mathcal{V}| \times 768 \times 3}$
+is resized to $100 \times 100 \times 3$ via bilinear interpolation.
+
+\paragraph{CNN encoder.}
+Five convolutional layers with batch normalization and ReLU activations,
+followed by global average pooling:
+\begin{equation}
+\mathbf{h}_I = \text{GAP}\!\left(\text{CNN}(\mathbf{I})\right) \in \mathbb{R}^{256}
 \end{equation}
 
+% ── LLM Branch ────────────────────────────────────────────────────────────────
 \subsection{LLM Branch ($\mathbf{h}_L$)}
 \label{sec:llm_branch}
 
-The raw token sequence of the function is fed into CodeBERT~\cite{codebert}.
-We take the \texttt{[CLS]} representation as the function-level semantic
-embedding:
+The LLM branch captures the \emph{semantic meaning} of the most structurally
+critical statements. Feeding the full function text to CodeBERT would overlap
+with the node-level semantics already encoded in the graph and image branches.
+Instead, we construct a focused \emph{PDG-guided slice} that targets the
+statements where vulnerabilities most commonly reside.
 
+\paragraph{PDG-guided slice construction.}
+We rank all nodes by betweenness centrality on $\mathcal{G}$:
 \begin{equation}
-\mathbf{h}_L = \text{CodeBERT}(f)[\texttt{CLS}]
+\beta(v) = \sum_{s \neq v \neq t} \frac{\sigma_{st}(v)}{\sigma_{st}}
 \end{equation}
+where $\sigma_{st}$ is the total number of shortest paths from $s$ to $t$
+and $\sigma_{st}(v)$ is the number passing through $v$. The top-$K$ nodes
+by $\beta$ are sorted by source line number and concatenated to form the
+slice $S_f$. We use $K=10$, keeping the slice within CodeBERT's 512-token
+limit.
 
-CodeBERT weights are fine-tuned end-to-end during training.
+\paragraph{CodeBERT fine-tuning.}
+The slice $S_f$ is tokenized and passed through CodeBERT~\cite{codebert},
+a RoBERTa-base model pre-trained on 6M (code, comment) pairs across six
+programming languages. The \texttt{[CLS]} token is projected to:
+\begin{equation}
+\mathbf{h}_L = W_L \cdot \text{CodeBERT}(S_f)[\texttt{CLS}] + b_L,
+\quad W_L \in \mathbb{R}^{256 \times 768}
+\end{equation}
+CodeBERT weights are fine-tuned end-to-end jointly with the rest of the model.
 
+% ── Fusion ────────────────────────────────────────────────────────────────────
 \subsection{Fusion and Classification}
+\label{sec:fusion}
 
-The three embeddings are concatenated and passed through a two-layer MLP
-classifier with dropout:
+The three 256-dimensional embeddings are concatenated to a 768-dimensional
+vector and passed through a two-layer MLP with dropout ($p=0.3$):
 
 \begin{equation}
-\hat{y} = \sigma\Bigl(W_2 \cdot \text{ReLU}(W_1 \cdot [\mathbf{h}_G \| \mathbf{h}_I \| \mathbf{h}_L] + b_1) + b_2\Bigr)
+\hat{y} = \sigma\!\left(W_2 \cdot \text{ReLU}\!\left(
+  W_1 \cdot [\mathbf{h}_G \| \mathbf{h}_I \| \mathbf{h}_L] + b_1
+\right) + b_2\right)
 \end{equation}
 
-We train with binary cross-entropy loss.
-
-\subsection{VulGCL-Lite: Edge Deployment}
-\label{sec:deployment}
-
-To enable inference on a Raspberry Pi 4B (ARM Cortex-A72, 8\,GB RAM), we apply
-post-training quantization: weights and activations are converted from
-float32 to int8 using ONNX Runtime. The LLM branch is further compressed via
-knowledge distillation from CodeBERT to a 2-layer LSTM student encoder.
-
-% TODO: Add architecture diagram (Figure 1)
-
-\subsection{Dataset and Labeling}
-\label{sec:data}
-
-\textbf{Standard benchmarks.} We evaluate on Devign~\cite{devign}
-(27,318 functions, C) and BigVul~\cite{bigvul} (188,636 functions, C/C++),
-using the standard train/val/test splits.
-
-\textbf{Stack Overflow supplementary corpus.} From our 620K-post SO dataset
-(2015--2025), we extract Python and Java code snippets from accepted answers.
-Snippets are labeled using Semgrep static analysis. Raw vote scores are
-\emph{not} used as labels due to Chen et al.'s~\cite{chen2019reliable} finding
-that insecure SO answers average higher scores than secure ones. Instead, we use
-a composite signal: static analysis label + comment-flag pattern (e.g.,
-\emph{``this is insecure''}) + accepted-answer status.
+where $W_1 \in \mathbb{R}^{256 \times 768}$ and $W_2 \in \mathbb{R}^{1 \times 256}$.
+We optimize binary cross-entropy loss with AdamW, linear warmup over the first
+epoch, and cosine decay scheduling.
