@@ -122,28 +122,52 @@ The novelty is the **combination and the deployment**.
 
 ## Results Tables (to be filled)
 
+### Baseline Run — CodeBERT LLM-only (2026-06-06)
+
+**Config:** uniform lr=2e-5, linear warmup (1 epoch) + linear decay, early stop=6,
+batch=32, fp16, 2×T4 GPU on Kaggle. Early stopping fired at epoch 11.
+
+| Metric | Test set |
+|--------|----------|
+| F1 | **0.6148** |
+| Accuracy | 0.6541 |
+| Precision | 0.6294 |
+| Recall | 0.6008 |
+| AUC-ROC | 0.7333 |
+
+**Source:** notebooks/VulGCL.ipynb → `/kaggle/working/test_results.json`
+
+**Notes:**
+- Previous run (no scheduler, 10× head LR): best val F1=0.5843 at epoch 2, fired at epoch 7
+- Scheduler fix: +3 F1 points (+0.030), now stops at epoch 11
+- Below LineVul (0.651) — expected, LineVul uses line-level attention on full context
+- This is the "LLM branch only" row in Table 2 ablation and the "LLM-only baseline" line in Table 1
+
+---
+
 ### Table 1 — Comparison with baselines on Devign
 
 | Method | Accuracy | Precision | Recall | F1 | AUC |
 |--------|----------|-----------|--------|----|-----|
 | Flawfinder (static) | -- | -- | -- | -- | -- |
-| Devign (GNN) | -- | -- | -- | -- | -- |
-| VulCNN (image) | -- | -- | -- | -- | -- |
-| LineVul (CodeBERT) | -- | -- | -- | -- | -- |
-| ReGVD | -- | -- | -- | -- | -- |
-| **VulGCL (ours)** | -- | -- | -- | -- | -- |
+| Devign (GNN) | 0.619 | -- | -- | 0.549 | -- |
+| VulCNN (image) | -- | -- | -- | ~0.58 | -- |
+| IVDetect (GNN) | -- | -- | -- | 0.617 | -- |
+| LineVul (CodeBERT) | -- | -- | -- | 0.651 | -- |
+| **CodeBERT baseline (ours)** | 0.654 | 0.629 | 0.601 | **0.615** | 0.733 |
+| **VulGCL full (ours)** | -- | -- | -- | -- | -- |
 
 ### Table 2 — Ablation study on Devign
 
-| Variant | F1 |
-|---------|----|
-| Graph branch only | -- |
-| Image branch only | -- |
-| LLM branch only | -- |
-| Graph + Image | -- |
-| Graph + LLM | -- |
-| Image + LLM | -- |
-| **Full VulGCL** | -- |
+| Variant | F1 | AUC |
+|---------|----|----|
+| Graph branch only | -- | -- |
+| Image branch only | -- | -- |
+| LLM branch only (= CodeBERT baseline) | **0.615** | **0.733** |
+| Graph + Image | -- | -- |
+| Graph + LLM | -- | -- |
+| Image + LLM | -- | -- |
+| **Full VulGCL** | -- | -- |
 
 ### Table 3 — Edge deployment (Raspberry Pi 4B)
 

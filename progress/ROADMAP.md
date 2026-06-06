@@ -118,10 +118,11 @@ Environment ready     ✅ torch 2.12.0 + PyG 2.7.0 + MPS on M1
   - mode="full": returns all five tensors — requires Phase 4.2 cache
   - frac parameter for prototype runs (e.g. frac=0.1 = 10% of train)
 
-- [ ] **4.2** Write `src/data/preprocess.py`
-  - Run full preprocessing on Devign (all 27K functions)
-  - Save processed data to `data/devign/processed/`
-  - Expected time: 2–5 hours on CPU (PDG extraction is slow)
+- [x] **4.2** Write `src/data/preprocess.py`
+  - Phase 1: Joern extraction (multiprocessing, N workers) → networkx pickles
+  - Phase 2: CodeBERT embedding (GPU, single process) → PyG Data + image .pt
+  - Resume capability, error logging, workspace cleanup
+  - Based on VulCNN joern_graph_gen.py + ImageGeneration.py with improvements
 
 - [ ] **4.3** Test DataLoader
   ```python
@@ -187,10 +188,10 @@ Environment ready     ✅ torch 2.12.0 + PyG 2.7.0 + MPS on M1
 
 Run each baseline. Record F1 on Devign test set.
 
-- [ ] **7.1** Run `baseline_codebert` (LLM branch only)
-  ```bash
-  python src/training/train.py --config experiments/configs/baseline_codebert.yaml
-  ```
+- [x] **7.1** Run `baseline_codebert` (LLM branch only)
+  - Result (2026-06-06): F1=0.6148, Acc=0.6541, Prec=0.6294, Rec=0.6008, AUC=0.7333
+  - Stopped at epoch 11 (early stop=6). Kaggle 2×T4, lr=2e-5, linear warmup+decay.
+  - Source: notebooks/VulGCL.ipynb → test_results.json
 
 - [ ] **7.2** Run `baseline_gnn` (graph branch only)
   ```bash

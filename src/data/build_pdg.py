@@ -9,7 +9,10 @@ import textwrap
 import networkx as nx
 
 
-JOERN_WORKSPACE = os.path.expanduser("~/Dev/research/workspace")
+JOERN_WORKSPACE = os.environ.get(
+    "JOERN_WORKSPACE",
+    os.path.expanduser("~/Dev/research/workspace")
+)
 os.makedirs(JOERN_WORKSPACE, exist_ok=True)
 
 # Regex patterns for Joern's DOT output

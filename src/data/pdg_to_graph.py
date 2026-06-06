@@ -85,6 +85,27 @@ def pdg_to_pyg(
     return Data(x=x.cpu(), edge_index=edge_index.cpu(), y=y.cpu())
 
 
+def pdg_to_slice(G: nx.DiGraph, top_k: int = 10) -> str:
+    """
+    Return the top-K most central PDG statements concatenated as a string.
+
+    Uses betweenness centrality — the same metric used in the image branch —
+    so the LLM branch focuses on structurally critical code, not the full
+    function. This makes it a genuinely independent modality from the image
+    branch (visual centrality pattern) and graph branch (full topology).
+
+    Nodes are sorted by line number before concatenation so the slice reads
+    as contiguous code rather than a random bag of statements.
+    """
+    if G.number_of_nodes() == 0:
+        return ""
+    centrality = nx.betweenness_centrality(G)
+    top_nodes = sorted(centrality, key=centrality.get, reverse=True)[:top_k]
+    top_nodes.sort(key=lambda n: G.nodes[n].get("line", 0))
+    statements = [G.nodes[n].get("code", "").strip() for n in top_nodes]
+    return " ".join(s for s in statements if s)
+
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, ".")
