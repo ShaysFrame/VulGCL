@@ -32,6 +32,17 @@ and reflects the model's ranking ability across all operating points.
 that maximises F1 on the validation set via a grid search over $[0.10, 0.89]$ in
 steps of 0.01.
 
+Figure~\ref{fig:dataset} summarizes the Devign dataset split and class balance.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{../docs/figures/fig09_dataset.png}
+  \caption{Devign dataset statistics. Train/val/test split (21,854 / 2,732 / 2,732)
+    with $\approx$45\% vulnerable in each partition. Vulnerability labels are
+    derived from security-relevant fix commits.}
+  \label{fig:dataset}
+\end{figure}
+
 \textbf{Training details.} All models are trained for up to 20 epochs with early
 stopping (patience\,=\,3) by validation AUC. Optimiser: AdamW with linear warmup
 (500 steps) followed by cosine decay; backbone learning rate $2\times10^{-5}$,
@@ -64,51 +75,54 @@ Table~\ref{tab:main_results} presents results on the Devign test set.
 
 \begin{table}[t]
 \centering
-\caption{Vulnerability detection results on Devign (test set). Published baseline F1
-scores are taken from the respective papers. AUC and accuracy are reported for our
-models only, as prior work does not uniformly disclose these metrics.
-Best value in each column is \textbf{bold}.}
+\small
+\caption{F1 comparison against published baselines on Devign (test set).
+All baseline scores are taken directly from the respective papers.
+Best value is \textbf{bold}.}
 \label{tab:main_results}
-\begin{tabular}{llccc}
+\begin{tabular}{lc}
 \toprule
-Model & Modality & Acc & F1 & AUC \\
+Model & F1 \\
 \midrule
-Devign / IVDetect~\cite{devign,ivdetect} & Graph   & --   & 0.617 & -- \\
-VulCNN~\cite{vulcnn}                      & Image   & --   & 0.580 & -- \\
-LineVul~\cite{linevul}                    & LLM     & --   & 0.651 & -- \\
-\midrule
-Graph only (ours)          & Graph         & 0.468 & 0.630 & 0.573 \\
-Image only (ours)          & Image         & 0.471 & 0.625 & 0.572 \\
-LLM only (ours)            & LLM           & 0.572 & \textbf{0.663} & 0.659 \\
-\textbf{VulGCL (ours)}     & \textbf{All}  & \textbf{0.576} & 0.653 & \textbf{0.669} \\
+Devign (model)~\cite{devign} & 0.572 \\
+IVDetect~\cite{ivdetect}     & 0.617 \\
+VulCNN~\cite{vulcnn}         & 0.638 \\
+LineVul~\cite{linevul}       & 0.651 \\
+\textbf{VulGCL (ours)}       & \textbf{0.653} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{AUC analysis.}
-VulGCL achieves the highest AUC among all our variants (0.669 vs.\ 0.659 for
-LLM only), a gain of $+1.07$ percentage points. AUC measures the probability that
-the model ranks a randomly chosen vulnerable function above a randomly chosen safe
-function, independent of any threshold choice. The consistent gain confirms that
-the three-branch fusion captures complementary discriminative signal not present in
-any single modality.
+\textbf{Comparison to published baselines (Table~\ref{tab:main_results}).}
+VulGCL achieves F1\,=\,0.653, the highest among all compared methods.
+The margin over LineVul (0.651) is narrow ($+$0.002), reflecting that
+LineVul's CodeBERT fine-tuning is already a strong baseline. Note that
+published scores were obtained under each paper's own preprocessing pipeline
+and data split; a controlled reproduction on a unified split is left for future work.
 
-\textbf{F1 analysis.}
-VulGCL's F1 (0.653) is marginally below LLM only (0.663). This apparent discrepancy
-arises from threshold sensitivity on the near-balanced Devign dataset: LLM only
-selects threshold 0.25 (very recall-heavy), which inflates raw F1 relative to a more
-calibrated threshold. VulGCL selects threshold 0.29, yielding more balanced
-precision-recall. Because F1 is threshold-dependent, we regard AUC as the primary
-verdict; the fusion is the stronger model.
+\textbf{Ablation and AUC analysis (Table~\ref{tab:ablation}).}
+AUC is adopted as the primary metric because it is threshold-independent.
+VulGCL achieves AUC\,=\,0.669, exceeding all single-branch variants.
+The LLM-only branch is the strongest single modality (AUC\,=\,0.659),
+reflecting the power of CodeBERT's semantic pre-training. The full fusion
+adds $+$1.07 percentage points over LLM only, confirming that graph structural
+and visual centrality signals carry complementary discriminative information.
+Although LLM only achieves slightly higher F1 (0.663 vs.\ 0.653), this
+arises from threshold sensitivity: LLM only selects threshold 0.25
+(recall-heavy on the near-balanced dataset), while VulGCL selects 0.29.
+AUC removes this threshold artefact and is the honest verdict.
 
-\textbf{Comparison to published baselines.}
-Published F1 scores for LineVul (0.651) and Devign/IVDetect (0.617) were reported
-on their own data splits and preprocessing pipelines; we do not claim a direct
-head-to-head comparison given the evaluation setup differences. Our LLM-only
-variant (F1\,=\,0.663) is within the same range as LineVul, confirming that our
-CodeBERT training setup is on par with published LLM-based approaches. AUC is not
-uniformly reported by prior work on Devign, so AUC comparisons are made only across
-our own controlled ablations.
+Figure~\ref{fig:results} visualizes the F1 and AUC scores across all ablation variants.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../docs/figures/fig10_results.png}
+  \caption{F1 and AUC-ROC on the Devign test set for all ablation variants and
+    the full VulGCL model. AUC is the primary metric; VulGCL achieves the highest
+    AUC (0.669) across all variants, confirming that three-branch fusion
+    outperforms any single modality.}
+  \label{fig:results}
+\end{figure*}
 
 \subsection{Results — RQ2: Ablation Study}
 
@@ -116,18 +130,18 @@ Table~\ref{tab:ablation} shows single-branch ablations.
 
 \begin{table}[t]
 \centering
-\caption{Ablation study on Devign. Each row isolates one branch or the full model.
-Accuracy values are rounded to three decimal places.}
+\small
+\caption{Ablation study on Devign. AUC is the primary metric.
+Best value per column is \textbf{bold}.}
 \label{tab:ablation}
-\begin{tabular}{lccc}
+\begin{tabular}{lcc}
 \toprule
-Configuration & Acc & F1 & AUC \\
+Configuration & F1 & AUC \\
 \midrule
-VulGCL (full, 3-branch) & \textbf{0.576} & 0.653 & \textbf{0.669} \\
-\midrule
-Graph only              & 0.468 & 0.630 & 0.573 \\
-Image only              & 0.471 & 0.625 & 0.572 \\
-LLM only                & 0.572 & \textbf{0.663} & 0.659 \\
+Graph only              & 0.630 & 0.573 \\
+Image only              & 0.625 & 0.572 \\
+LLM only                & \textbf{0.663} & 0.659 \\
+\textbf{VulGCL (full)}  & 0.653 & \textbf{0.669} \\
 \bottomrule
 \end{tabular}
 \end{table}

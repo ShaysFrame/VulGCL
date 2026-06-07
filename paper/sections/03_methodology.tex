@@ -20,11 +20,23 @@ Program Dependency Graph, ensuring the three representations carry complementary
 rather than redundant information. Figure~\ref{fig:architecture} illustrates
 the full pipeline.
 
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../docs/figures/fig03_architecture.png}
+  \caption{VulGCL architecture. A C/C++ function is parsed into a PDG by Joern,
+    which is then processed by three independent branches: a GAT-based graph
+    branch ($\mathbf{h}_G$), a centrality-image CNN branch ($\mathbf{h}_I$), and
+    a CodeBERT LLM branch on a betweenness-guided slice ($\mathbf{h}_L$). A
+    learned softmax gate fuses the three 256-dim embeddings, and a two-layer MLP
+    produces the vulnerability probability.}
+  \label{fig:architecture}
+\end{figure*}
+
 % ── PDG Extraction ────────────────────────────────────────────────────────────
 \subsection{PDG Extraction}
 \label{sec:pdg}
 
-We parse each function using Joern~\cite{joern2014}, an open-source static
+We parse each function using Joern~\cite{joern}, an open-source static
 analysis framework, to extract its Program Dependency Graph
 $\mathcal{G} = (\mathcal{V}, \mathcal{E})$. Each node $v_i \in \mathcal{V}$
 represents a single code statement; each directed edge
@@ -32,7 +44,19 @@ $e_{ij} \in \mathcal{E}$ encodes a data or control dependency from statement
 $i$ to statement $j$, annotated with the variable $\phi_{ij}$ carrying the
 dependency. Joern handles real-world C/C++ constructs including macros,
 typedefs, and platform-specific APIs. All three branches derive their inputs
-from $\mathcal{G}$, as described below.
+from $\mathcal{G}$, as described below. Figure~\ref{fig:pdg} shows an example
+PDG extracted from a buffer-overflow function and the resulting node table.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../docs/figures/fig04_pdg_extraction.png}
+  \caption{PDG extraction. Joern performs static analysis on the C source function
+    (left) and produces a Program Dependency Graph (right) where solid blue edges
+    denote data dependencies and dashed orange edges denote control dependencies.
+    The node table (bottom) shows the statement type for each PDG node; node~3
+    (\texttt{buffer[x]=0;}) is the vulnerable assignment.}
+  \label{fig:pdg}
+\end{figure*}
 
 % ── Graph Branch ──────────────────────────────────────────────────────────────
 \subsection{Graph Branch ($\mathbf{h}_G$)}
@@ -72,12 +96,28 @@ We use 4 attention heads, hidden dimension 256, and global mean pooling:
 \in \mathbb{R}^{256}
 \end{equation}
 
+Figure~\ref{fig:graph_branch} illustrates the graph branch: the input PDG (left)
+is transformed by two GAT layers whose learned attention weights $\alpha_{ij}$
+(right) reflect the relative importance of each dependency edge.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../docs/figures/fig05_graph_branch.png}
+  \caption{Graph branch. The input PDG (left) carries structural node features
+    (type bucket, in-/out-degree, centrality). After two GAT layers (center), each
+    edge receives a learned attention weight $\alpha_{ij}$ (right); thicker edges
+    indicate higher weight. Global attention pooling produces
+    $\mathbf{h}_G \in \mathbb{R}^{256}$. The node feature table (bottom) lists
+    the feature vector for each PDG node.}
+  \label{fig:graph_branch}
+\end{figure*}
+
 % ── Image Branch ──────────────────────────────────────────────────────────────
 \subsection{Image Branch ($\mathbf{h}_I$)}
 \label{sec:image_branch}
 
 The image branch encodes the \emph{visual structural pattern} of the function
-as a three-channel matrix image, inspired by VulCNN~\cite{vulcnn2022}. Our
+as a three-channel matrix image, inspired by VulCNN~\cite{vulcnn}. Our
 key improvement over VulCNN is replacing sent2vec with CodeBERT node embeddings,
 enabling richer code semantics in the visual representation.
 
@@ -102,6 +142,20 @@ followed by global average pooling:
 \begin{equation}
 \mathbf{h}_I = \text{GAP}\!\left(\text{CNN}(\mathbf{I})\right) \in \mathbb{R}^{256}
 \end{equation}
+
+Figure~\ref{fig:image_branch} shows the image branch pipeline from centrality
+score table to three-channel pixel grid to CNN encoding.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../docs/figures/fig06_image_branch.png}
+  \caption{Image branch. PDG node centrality scores (left table) are multiplied
+    by the shared CodeBERT node embeddings to form a three-channel
+    $100{\times}100$ image (center, channels: degree, closeness, Katz). A
+    three-layer CNN with batch normalization and global average pooling encodes
+    the image into $\mathbf{h}_I \in \mathbb{R}^{256}$.}
+  \label{fig:image_branch}
+\end{figure*}
 
 % ── LLM Branch ────────────────────────────────────────────────────────────────
 \subsection{LLM Branch ($\mathbf{h}_L$)}
@@ -133,6 +187,18 @@ programming languages. The \texttt{[CLS]} token is projected to:
 \quad W_L \in \mathbb{R}^{256 \times 768}
 \end{equation}
 CodeBERT weights are fine-tuned end-to-end jointly with the rest of the model.
+Figure~\ref{fig:llm_branch} illustrates the LLM branch pipeline.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../docs/figures/fig07_llm_branch.png}
+  \caption{LLM branch. PDG nodes are ranked by betweenness centrality (left bar
+    chart); the top-10 nodes form a focused code slice (center). The slice is
+    BPE-tokenized and passed through fine-tuned CodeBERT; the \texttt{[CLS]}
+    token is projected via a linear layer to
+    $\mathbf{h}_L \in \mathbb{R}^{256}$.}
+  \label{fig:llm_branch}
+\end{figure*}
 
 % ── Fusion ────────────────────────────────────────────────────────────────────
 \subsection{Fusion and Classification}
@@ -149,4 +215,16 @@ vector and passed through a two-layer MLP with dropout ($p=0.3$):
 
 where $W_1 \in \mathbb{R}^{256 \times 768}$ and $W_2 \in \mathbb{R}^{1 \times 256}$.
 We optimize binary cross-entropy loss with AdamW, linear warmup over the first
-epoch, and cosine decay scheduling.
+epoch, and cosine decay scheduling. Figure~\ref{fig:fusion} summarizes the full
+fusion mechanism.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{../docs/figures/fig08_fusion.png}
+  \caption{Gated fusion and classification. The three branch embeddings
+    $\mathbf{h}_G$, $\mathbf{h}_I$, $\mathbf{h}_L$ are fed to a learned softmax
+    gate (center) that produces per-branch weights (stacked bar: Graph~52\%,
+    Image~11\%, LLM~37\% in this example). The weighted sum is passed through a
+    two-layer MLP to produce the vulnerability probability $\hat{y}$.}
+  \label{fig:fusion}
+\end{figure*}

@@ -1,19 +1,16 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented VulGCL, the first multimodal vulnerability detection framework to
-jointly fuse graph (GNN), visual (CNN), and semantic (CodeBERT) representations
-of source code for general C/C++/Java vulnerability detection. Our ablation
-study confirms that each modality contributes independently, and their
-combination consistently outperforms all single-modality and two-modality
-baselines on Devign and BigVul.
+We presented VulGCL, a multimodal vulnerability detection framework that
+jointly fuses graph (GNN), visual (CNN), and semantic (CodeBERT) representations
+derived from a Program Dependency Graph. On the Devign benchmark, VulGCL achieves
+AUC\,=\,66.9\% and F1\,=\,65.3\%, outperforming all single-modality variants on
+AUC. The ablation study confirms that graph structural and visual centrality
+signals carry complementary information beyond semantic pre-training alone,
+producing a consistent $+$1.07\,pp AUC gain over the strongest single branch.
 
-We further showed that VulGCL can be compressed to VulGCL-Lite via
-post-training quantization and knowledge distillation, enabling real-time
-inference on a Raspberry Pi 4B with acceptable accuracy loss — making
-vulnerability scanning feasible on IoT and embedded devices for the first time.
-
-Future work includes extending VulGCL to Java and Python using Joern's
-multi-language PDG support, integrating richer Stack Overflow community signals,
-and exploring attention-based explanations to help developers understand
-\emph{why} a function was flagged as vulnerable.
+Future work includes two-branch ablations to isolate the marginal contribution of
+each modality pair, cross-dataset evaluation on BigVul to test generalization,
+multi-seed training for statistical significance, a quantized edge variant
+(VulGCL-Lite) for resource-constrained deployment, and integration of Stack
+Overflow community signals as an additional modality.

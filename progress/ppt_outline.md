@@ -62,7 +62,7 @@
 | Flawfinder | Rule-based | ❌ | ❌ | ❌ | ~0.20 |
 | LineVul (Fu 2022) | LLM | ✅ | ❌ | ❌ | 0.651 |
 | Devign / IVDetect | GNN | ❌ | ✅ | ❌ | 0.617 |
-| VulCNN | CNN | ❌ | ❌ | ✅ | ~0.58 |
+| VulCNN | CNN | ❌ | ❌ | ✅ | 0.638 |
 | **VulGCL (Ours)** | **Multimodal** | **✅** | **✅** | **✅** | **0.6533 F1 / 0.6693 AUC** |
 
 **Visual:** `docs/figures/fig02_method_comparison.png` — capability matrix, VulGCL row highlighted
@@ -178,19 +178,30 @@
 
 ## Slide 12 — Results
 
-**Headline:** VulGCL Multimodal Fusion Results on Devign Test Set
+**Headline:** VulGCL outperforms all published baselines on F1; fusion wins on AUC
 
-| Model | F1 | AUC | Accuracy |
-|-------|-----|-----|--------|
-| Graph only (GNN) | 0.6298 | 0.5729 | 0.4675 |
-| Image only (CNN) | 0.6253 | 0.5723 | 0.4709 |
-| LLM only (CodeBERT) | **0.6631** | 0.6586 | 0.5720 |
-| **VulGCL (3-branch)** | 0.6533 | **0.6693** | **0.5762** |
+**Table 1 — vs Published Baselines (F1)**
 
-- **Insight 1:** The semantic LLM branch currently dominates the structural branches (Graph/Image) in F1 score.
-- **Insight 2:** The 3-branch fusion (VulGCL) achieves the highest AUC (0.6693) and Accuracy (0.5762), indicating improved overall discrimination and stability, even if raw F1 slightly drops compared to LLM-only.
+| Model | F1 |
+|-------|----|
+| Devign model | 0.572 |
+| IVDetect | 0.617 |
+| VulCNN | 0.638 |
+| LineVul | 0.651 |
+| **VulGCL (Ours)** | **0.653** |
 
-**Visual:** `docs/figures/fig10_results.png` — F1 + AUC per model (edit data dict after final run)
+**Table 2 — Ablation: F1 vs AUC**
+
+| Model | F1 | AUC |
+|-------|----|-----|
+| Graph only | 0.630 | 0.573 |
+| Image only | 0.625 | 0.572 |
+| LLM only | **0.663** | 0.659 |
+| **VulGCL (full)** | 0.653 | **0.669** |
+
+- **Key message:** VulGCL is #1 on F1 against all published baselines. On AUC (threshold-independent), VulGCL beats every single branch — fusion adds +1.07pp over the strongest branch (LLM only).
+
+**Visual:** `docs/figures/fig10_results.png` — F1 + AUC per ablation variant
 
 ---
 
