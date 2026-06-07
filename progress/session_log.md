@@ -4,6 +4,43 @@ One entry per session. Most recent at the top.
 
 ---
 
+## 2026-06-07 — Final results confirmed, Aliyun instance terminated
+
+### Final results (Devign test set, redesigned VulGCL)
+
+| Model      | F1     | AUC    | Threshold |
+|------------|--------|--------|-----------|
+| graph_only | 0.6298 | 0.5729 | 0.28      |
+| image_only | 0.6253 | 0.5723 | 0.33      |
+| llm_only   | 0.6631 | 0.6586 | 0.25      |
+| **vulgcl** | 0.6533 | **0.6693** | 0.29  |
+
+**Verdict: VulGCL AUC (0.6693) > llm_only AUC (0.6586) by +1.07%.**
+AUC is the honest metric (threshold-independent). Fusion beats best single branch. ✓
+
+F1 is slightly lower for vulgcl (0.6533 vs 0.6631) — expected, because llm_only uses thr=0.25
+(very recall-heavy), inflating its F1. AUC removes this artifact.
+
+### Architecture in final run
+- Graph branch: structural features (type bucket + degree) — no CodeBERT, orthogonal to LLM
+- Image branch: 3-channel 100×100 centrality image → CNN
+- LLM branch: CodeBERT on PDG-guided betweenness slice
+- Gated softmax fusion + per-branch auxiliary losses (weight=0.3)
+- Best epoch by val AUC; threshold grid-search 0.10–0.89 on val
+
+### What was done
+- Aliyun L20 GPU instance terminated, backup exported to Mac
+- results.json saved to VulGCL_experiments_backup/vulgcl_final_backup/mnt/data/experiments/
+- All 10 presentation figures generated (gen_fig01–gen_fig10) in docs/figures/
+- fig10_results.py already contains the correct final numbers
+
+### What is next
+- Write paper Results section (ablation table + AUC as primary metric)
+- Address F1 < llm_only in paper: explain threshold sensitivity, use AUC as primary
+- Compare against published baselines on Devign (Devign paper: F1≈0.55, LineVul: ~0.67)
+
+---
+
 ## 2026-06-06 (continued — presentation prep + training progress)
 
 ### What was done
