@@ -45,7 +45,7 @@
 - Real examples: Heartbleed (OpenSSL), EternalBlue — all missed by automated tools
 - Manual review cannot scale: Linux kernel alone has 27 million lines of C code
 
-**Visual:** Timeline of famous C/C++ vulnerabilities with their cost/impact
+**Visual:** `docs/figures/fig01_cve_timeline.png` — CVE growth + scale facts
 
 ---
 
@@ -65,7 +65,7 @@
 | VulCNN | CNN | ❌ | ❌ | ✅ | ~0.58 |
 | **VulGCL (Ours)** | **Multimodal** | **✅** | **✅** | **✅** | **≥0.68** |
 
-**Visual:** Highlight the VulGCL row in brand color — the only row with all ✅
+**Visual:** `docs/figures/fig02_method_comparison.png` — capability matrix, VulGCL row highlighted
 
 ---
 
@@ -83,7 +83,7 @@
 - LLM branch: captures WHAT the most critical code semantically means
 - All three views come from the same PDG — no redundancy
 
-**Visual:** Full architecture diagram (docs/figures/fig1_architecture.png)
+**Visual:** `docs/figures/fig03_architecture.png` — full 3-branch + gated fusion architecture
 
 ---
 
@@ -96,7 +96,7 @@
 - Joern: industry-standard static analysis, handles real C/C++ (macros, typedefs, platform APIs)
 - One PDG → feeds all three branches independently
 
-**Visual:** C code snippet → Joern → PDG with labeled nodes and edges
+**Visual:** `docs/figures/fig04_pdg_extraction.png` — C code → Joern → PDG
 
 ---
 
@@ -113,7 +113,7 @@
 - 2-layer GAT (Graph Attention Network) → learns which dependencies matter most
 - Global mean pooling → h_G ∈ ℝ²⁵⁶
 
-**Visual:** PDG graph with highlighted edges → GNN layers → pooled vector
+**Visual:** `docs/figures/fig05_graph_branch.png` — PDG → GAT → attention pool
 
 ---
 
@@ -126,7 +126,7 @@
 - 5-layer CNN → h_I ∈ ℝ²⁵⁶
 - Inspired by VulCNN — upgraded: sent2vec → CodeBERT (richer semantics)
 
-**Visual:** PDG → centrality scores → 3-channel image → CNN output
+**Visual:** `docs/figures/fig06_image_branch.png` — centrality × embedding → CNN
 
 ---
 
@@ -140,7 +140,7 @@
 - [CLS] → Linear(768 → 256) → h_L ∈ ℝ²⁵⁶
 - Captures semantic meaning of where bugs actually live
 
-**Visual:** PDG → betweenness ranking → top-10 slice → CodeBERT → output
+**Visual:** `docs/figures/fig07_llm_branch.png` — betweenness slice → CodeBERT
 
 ---
 
@@ -153,7 +153,7 @@
 - Loss: Binary Cross-Entropy
 - Optimizer: AdamW + linear warmup + cosine decay
 
-**Visual:** 3 colored vectors → concat → MLP → probability bar
+**Visual:** `docs/figures/fig08_fusion.png` — gated fusion → MLP → P(vuln)
 
 ---
 
@@ -178,19 +178,19 @@
 
 ## Slide 12 — Results
 
-**Headline:** LLM baseline done — preprocessing running — full results in 3 weeks
+**Headline:** VulGCL Multimodal Fusion Results on Devign Test Set
 
-| Model | F1 | AUC | Status |
+| Model | F1 | AUC | Accuracy |
 |-------|-----|-----|--------|
-| LLM only (CodeBERT, ours) | **0.6148** | **0.7333** | ✅ Done |
-| Graph only (GNN) | — | — | Queued |
-| Image only (CNN) | — | — | Queued |
-| **VulGCL (3-branch)** | **≥0.68** | **≥0.78** | Queued |
+| Graph only (GNN) | 0.6298 | 0.5729 | 0.4675 |
+| Image only (CNN) | 0.6253 | 0.5723 | 0.4709 |
+| LLM only (CodeBERT) | **0.6631** | 0.6586 | 0.5720 |
+| **VulGCL (3-branch)** | 0.6533 | **0.6693** | **0.5762** |
 
-- Joern preprocessing running NOW: 27K functions → PDG graphs + images + LLM slices
-- Full training begins this week after preprocessing completes
+- **Insight 1:** The semantic LLM branch currently dominates the structural branches (Graph/Image) in F1 score.
+- **Insight 2:** The 3-branch fusion (VulGCL) achieves the highest AUC (0.6693) and Accuracy (0.5762), indicating improved overall discrimination and stability, even if raw F1 slightly drops compared to LLM-only.
 
-**Visual:** Learning curve — docs/figures/learning_curve_codebert.png
+**Visual:** `docs/figures/fig10_results.png` — F1 + AUC per model (edit data dict after final run)
 
 ---
 

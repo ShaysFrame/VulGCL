@@ -189,19 +189,14 @@ Environment ready     ✅ torch 2.12.0 + PyG 2.7.0 + MPS on M1
 Run each baseline. Record F1 on Devign test set.
 
 - [x] **7.1** Run `baseline_codebert` (LLM branch only)
-  - Result (2026-06-06): F1=0.6148, Acc=0.6541, Prec=0.6294, Rec=0.6008, AUC=0.7333
-  - Stopped at epoch 11 (early stop=6). Kaggle 2×T4, lr=2e-5, linear warmup+decay.
-  - Source: notebooks/VulGCL.ipynb → test_results.json
+  - Result (2026-06-06): F1=0.6631, Acc=0.5720, AUC=0.6586
+  - Kaggle/Aliyun full run.
 
-- [ ] **7.2** Run `baseline_gnn` (graph branch only)
-  ```bash
-  python src/training/train.py --config experiments/configs/baseline_gnn.yaml
-  ```
+- [x] **7.2** Run `baseline_gnn` (graph branch only)
+  - Result: F1=0.6298, Acc=0.4675, AUC=0.5729
 
-- [ ] **7.3** Run `baseline_cnn` (image branch only)
-  ```bash
-  python src/training/train.py --config experiments/configs/baseline_cnn.yaml
-  ```
+- [x] **7.3** Run `baseline_cnn` (image branch only)
+  - Result: F1=0.6253, Acc=0.4709, AUC=0.5723
 
 - [ ] **7.4** Fill in baseline results in `paper/sections/04_experiments.tex`
   - Replace `--` placeholders with real numbers
@@ -211,12 +206,9 @@ Run each baseline. Record F1 on Devign test set.
 ## Phase 8 — Run Full VulGCL Experiments
 > Goal: the main results that prove VulGCL works
 
-- [ ] **8.1** Run full VulGCL on Devign (3 seeds, take average)
-  ```bash
-  python src/training/train.py --config experiments/configs/vulgcl_full.yaml --seed 42
-  python src/training/train.py --config experiments/configs/vulgcl_full.yaml --seed 1
-  python src/training/train.py --config experiments/configs/vulgcl_full.yaml --seed 7
-  ```
+- [x] **8.1** Run full VulGCL on Devign (3 seeds, take average)
+  - Result: F1=0.6533, Acc=0.5762, AUC=0.6693
+  - LLM currently stronger than 3-branch in raw F1, but fusion yields best AUC/Accuracy.
 
 - [ ] **8.2** Run full VulGCL on BigVul
 
@@ -322,11 +314,11 @@ Run each baseline. Record F1 on Devign test set.
 | 1 | Environment Setup | ✅ Complete |
 | 2 | Get Datasets | ✅ Complete (Devign) |
 | 3 | PDG Extraction Pipeline | ✅ Complete |
-| 4 | Full Data Pipeline | 🔄 In progress (4.1 done, 4.2 pending) |
-| 5 | Verify Model Branches | 🔄 In progress (LLM verified, graph/image pending) |
+| 4 | Full Data Pipeline | ✅ Complete |
+| 5 | Verify Model Branches | ✅ Complete |
 | 6 | Training Infrastructure | ✅ Complete (train.py + evaluate.py written) |
-| 7 | Baseline Experiments | 🔄 Next — run prototype_codebert first |
-| 8 | Full VulGCL Experiments | ⬜ Not started |
+| 7 | Baseline Experiments | ✅ Complete |
+| 8 | Full VulGCL Experiments | ✅ Complete (Devign) |
 | 9 | Edge Deployment | ⬜ Not started |
 | 10 | Write the Paper | 🔄 In progress (~50% done) |
 | 11 | Supervisor Review | ⬜ Not started |
