@@ -34,8 +34,8 @@ for xi, yr, c in zip(xs, years, cves):
 
 txt(ax, x0 - 0.35, ytop + 0.15, "CVEs reported per year", ha="left",
     va="bottom", fontsize=9.5, fontweight="bold", color=C_IN)
-txt(ax, x1, ybase + (ytop - ybase) * 0.55, "7× since 2016\n— accelerating",
-    ha="right", va="center", fontsize=9, color=C_F, fontweight="bold")
+txt(ax, x1 - 0.5, ytop + 0.3, "7× since 2016\n— accelerating",
+    ha="right", va="top", fontsize=9, color=C_F, fontweight="bold")
 
 box(ax, 0.7, 0.15, 10.6, 0.95, BG_N, C_IN, lw=1.2, rad=0.1, zo=2)
 for i, f in enumerate(facts):
