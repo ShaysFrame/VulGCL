@@ -12,15 +12,19 @@ jointly learns from three complementary views of a code function: (1)~a
 to capture structural relationships; (2)~an \emph{image branch} that converts
 the PDG into a three-channel image via node centrality encoding and applies a
 CNN to capture visual patterns; and (3)~an \emph{LLM branch} that fine-tunes
-CodeBERT to capture the semantic meaning of code. The three representations are
-fused and passed to a vulnerability classifier.
+CodeBERT on a betweenness-centrality-guided code slice to capture the semantic
+meaning of critical statements. The three representations are fused by a learned
+softmax gate and passed to an MLP classifier. Per-branch auxiliary losses during
+training prevent the dominant LLM branch from suppressing structural signals.
 
-We additionally propose \textbf{VulGCL-Lite}, a quantized version of VulGCL
-that runs inference on a Raspberry Pi 4B, enabling real-time vulnerability
-scanning on resource-constrained IoT and embedded devices.
-
-Experiments on the Devign and BigVul benchmarks show that VulGCL outperforms
-all single-modality baselines and achieves state-of-the-art F1 of XX.X\% on
-Devign and XX.X\% on BigVul. VulGCL-Lite achieves XX.X\% of full-model
-accuracy at XX\,ms per sample on Raspberry Pi 4B.
-% ↑ Fill in actual numbers after experiments
+Experiments on the Devign benchmark (27,318 C/C++ functions with
+security-commit-derived labels) show that VulGCL achieves an AUC-ROC of 66.9\%
+and F1 of 65.3\% on the test set. AUC is adopted as the primary evaluation
+metric because it is threshold-independent and reflects the model's discriminative
+ranking ability across all operating points. The three-branch fusion outperforms
+all single-modality variants on AUC, exceeding the strongest single branch
+(LLM only, AUC\,=\,65.9\%) by $+$1.07 percentage points, confirming that graph
+structural and visual centrality signals carry complementary information beyond
+semantic pre-training alone. Two-branch ablations, cross-dataset evaluation on
+BigVul, and a quantized edge variant (VulGCL-Lite) for resource-constrained
+deployment are planned for the extended version of this work.

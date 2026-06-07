@@ -63,7 +63,7 @@
 | LineVul (Fu 2022) | LLM | ✅ | ❌ | ❌ | 0.651 |
 | Devign / IVDetect | GNN | ❌ | ✅ | ❌ | 0.617 |
 | VulCNN | CNN | ❌ | ❌ | ✅ | ~0.58 |
-| **VulGCL (Ours)** | **Multimodal** | **✅** | **✅** | **✅** | **≥0.68** |
+| **VulGCL (Ours)** | **Multimodal** | **✅** | **✅** | **✅** | **0.6533 F1 / 0.6693 AUC** |
 
 **Visual:** `docs/figures/fig02_method_comparison.png` — capability matrix, VulGCL row highlighted
 
@@ -159,16 +159,16 @@
 
 ## Slide 11 — Dataset & Experimental Setup
 
-**Headline:** We evaluate on Devign — 27,318 real C/C++ functions with confirmed CVEs
+**Headline:** We evaluate on Devign — 27,318 real C/C++ functions labelled from security fix commits
 
 | | Train | Validation | Test |
 |--|-------|-----------|------|
 | Total functions | 21,854 | 2,732 | 2,732 |
 | Vulnerable | ~45% | ~45% | ~45% |
 
-- Source: FFmpeg, QEMU, LibTIFF, VLC — all CVE-confirmed
+- Source: FFmpeg, QEMU, LibTIFF, VLC — labels from security-commit history
 - Nearly balanced — no class weighting needed
-- Training: Kaggle 2× T4 GPU, fp16 mixed precision, batch=32
+- Training: NVIDIA L20 GPU (Aliyun), fp16 mixed precision, batch=32
 
 ---
 

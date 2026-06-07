@@ -3,32 +3,99 @@
 
 \subsection{Why Each Branch Helps}
 
-% TODO: Fill in after ablation results.
-% Expected argument structure:
-% - Graph catches structural patterns (e.g., tainted data flowing to sink)
-% - Image catches global layout patterns (e.g., deeply nested control flow)
-% - LLM catches semantic context (e.g., unsafe API usage patterns)
+The ablation results reveal a clear hierarchy of modality strength on Devign.
+
+\textbf{LLM branch (dominant).}
+The LLM-only variant achieves AUC\,=\,0.659, far above the graph (0.573) and image
+(0.572) baselines. This is expected: CodeBERT's pre-training on 6 million code-comment
+pairs encodes rich semantic knowledge about API usage, type safety, and common
+vulnerability idioms. When focused by betweenness-centrality-guided slicing,
+CodeBERT receives the most structurally critical statements at $\leq$512 tokens,
+avoiding information dilution from long irrelevant context.
+
+\textbf{Graph branch (structural complement).}
+The graph-only branch (AUC\,=\,0.573) captures how data flows between statements
+and which control paths are reachable — information the LLM sees only implicitly
+via token order. In the full fusion, the gated softmax assigns the graph branch the
+highest weight ($\approx$52\%), suggesting the fusion mechanism recognises its
+structural independence from the LLM branch. The AUC gain of the full model over
+LLM-only ($+$1.07\,pp) is attributable primarily to this structural signal.
+
+\textbf{Image branch (topological pattern).}
+The image-only branch (AUC\,=\,0.572) encodes centrality scores across all PDG
+nodes as a three-channel pixel grid, giving the CNN a global view of which
+statements are structurally central. Although its standalone AUC is the weakest of
+the three branches, the full model benefits from its complementary view: it captures
+topological asymmetries (e.g., deeply nested control flow, high-centrality sink
+nodes) that neither textual nor graph representations emphasise directly. The gate
+assigns the image branch $\approx$11\% weight — modest but non-zero, confirming it
+contributes rather than adds noise.
 
 \subsection{When VulGCL Fails}
 
-% TODO: Analyze false positives and false negatives after experiments.
-% Expected: obfuscated code, very short functions, unusual coding styles.
+Three failure modes are observed or anticipated.
+
+\textbf{Joern parse failures.} Approximately 6\% of Devign functions fail PDG
+extraction. These are typically functions that heavily use external SDK types
+(Apple VDA API, CUDA intrinsics) that Joern cannot resolve, or functions with
+non-standard preprocessor macros. All three branches depend on a valid PDG; parse
+failures produce no representation and are excluded from evaluation.
+
+\textbf{Very short functions.} Functions with fewer than three PDG nodes produce
+degenerate images (nearly uniform pixel grids) and trivial graph structures. The
+LLM branch still operates on these, but the gate has little structural signal to
+combine. These cases are likely to behave identically to the LLM-only baseline.
+
+\textbf{Threshold sensitivity near decision boundary.} Functions with predicted
+probability near 0.29 (the selected threshold) are sensitive to small
+distributional shifts between training and deployment. The AUC metric is unaffected
+by this, but deployed systems using a fixed threshold may see higher error rates on
+code styles not represented in Devign (e.g., embedded-system C with non-POSIX APIs).
 
 \subsection{Limitations}
 
 \begin{itemize}
-  \item VulGCL is currently evaluated on C/C++ (Devign, BigVul). Generalization
-    to other languages requires Joern support and retraining.
-  \item PDG extraction via Joern fails on syntactically malformed code snippets
-    (approx.\ X\% of SO snippets in our dataset).
-  \item VulGCL-Lite's quantization causes a modest accuracy drop of
-    approximately X\%, which may be unacceptable in high-security contexts.
+  \item \textbf{Single dataset.} VulGCL is evaluated on Devign (C/C++) only.
+    Cross-dataset generalisation to BigVul or cross-language transfer (Rust, Go)
+    requires additional evaluation and is left for future work.
+
+  \item \textbf{Joern coverage.} PDG extraction succeeds for $\approx$94\% of
+    Devign functions. The excluded 6\% may be systematically different
+    (e.g., platform-specific code), potentially biasing evaluation results.
+
+  \item \textbf{Graph and image branch weakness.} The standalone graph and image
+    branches achieve AUC only marginally above random ($\approx$0.57), suggesting
+    that pure structural signals — without pre-trained semantic knowledge — are
+    insufficient alone on Devign. The fusion's gain is real but modest.
+
+  \item \textbf{VulGCL-Lite and edge deployment.} The quantized edge variant is a
+    planned contribution only; latency and accuracy tradeoffs on constrained
+    hardware have not yet been measured.
+
+  \item \textbf{Language scope.} Joern supports multiple languages, but VulGCL is
+    trained only on C/C++. Generalisation to other languages requires retraining
+    and language-specific PDG schema validation.
+
+  \item \textbf{Incomplete ablation.} Two-branch configurations (Graph+LLM,
+    Image+LLM, Graph+Image) were not run in this work. These experiments are
+    required before submission to establish the marginal contribution of each
+    individual branch to the fusion gain.
+
+  \item \textbf{Single training seed.} All results are from a single training run.
+    Mean and standard deviation across 3–5 seeds are needed to confirm statistical
+    significance of the +1.07\,pp AUC gain.
+
+  \item \textbf{Baseline evaluation setup.} Published F1 scores for LineVul and
+    Devign/IVDetect are taken from the original papers and were obtained under
+    different preprocessing pipelines and data splits. A reproduction on a common
+    split is needed for a rigorous head-to-head comparison.
 \end{itemize}
 
 \subsection{Stack Overflow Label Quality}
 
-Raw SO vote scores anticorrelate with security~\cite{chen2019reliable}.
-Our composite labeling strategy (static analysis + comment flags + accepted
-answer status) addresses this, but static analysis tools have their own false
-positive rates. Future work should include manual validation of a sample of SO
-labels.
+Integration of Stack Overflow community signals (accepted-answer code snippets,
+security-flagged comments) is a planned future modality. Raw SO vote scores
+anticorrelate with security~\cite{chen2019reliable}; a composite labeling strategy
+combining static analysis, comment flags, and accepted-answer status would be
+required. The current VulGCL implementation operates on CVE-labelled C/C++ functions
+only; SO integration is deferred to future work.

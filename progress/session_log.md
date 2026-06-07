@@ -4,6 +4,15 @@ One entry per session. Most recent at the top.
 
 ---
 
+## 2026-06-07 — Paper written, figure debt logged
+
+### Figure redesign debt (future work)
+Figs 01, 02, 03, 09 predate the rich-visual standard established by figs 05-08
+(circle nodes, code panels, data tables, pentagon arrows). If teacher approves
+further research, redesign these to match. Not blocking the current submission.
+
+---
+
 ## 2026-06-07 — Final results confirmed, Aliyun instance terminated
 
 ### Final results (Devign test set, redesigned VulGCL)
