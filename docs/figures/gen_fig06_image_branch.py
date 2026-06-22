@@ -13,15 +13,18 @@ sys.path.insert(0, os.path.dirname(__file__))
 C_HDR = "#2E7D32"
 
 fig, ax = new_canvas(16, 9.0)
-title(ax, 7.0, 8.50, "Image Branch — PDG centrality scores encoded as a visual signature", fs=12.5)
+title(ax, 8.0, 8.50, "Image Branch — PDG centrality scores encoded as a visual signature", fs=12.5)
+
+# Offset for shifting everything right
+DX = 1.2
 
 # ── LEFT: centrality score table ─────────────────────────────────────────────
-txt(ax, 2.1, 7.38, "PDG Node Centrality Scores", ha="center",
+txt(ax, 2.1 + DX, 7.38, "PDG Node Centrality Scores", ha="center",
     fontsize=10, fontweight="bold", color=C_I)
-txt(ax, 2.1, 7.08, "3 metrics × N nodes  →  N × 3 matrix",
+txt(ax, 2.1 + DX, 7.08, "3 metrics × N nodes  →  N × 3 matrix",
     ha="center", fontsize=7.5, color="#546E7A")
 
-TX = 0.25
+TX = 0.25 + DX
 ROWY = 6.78
 RH = 0.44
 CWS_T = [1.85, 1.1, 1.1, 1.1]
@@ -55,20 +58,22 @@ box(ax, TX, ROWY-RH*(len(trows)+1), sum(CWS_T), RH*(len(trows)+1),
     "none", "#81C784", lw=1.2, rad=0.04, zo=5)
 
 # ── CENTER ARROW ──────────────────────────────────────────────────────────────
-pts = np.array([[5.0+0.5, 5.55], [5.6+0.5, 5.55], [5.6+0.5, 5.83], [6.15+0.5, 5.3],
-                [5.6+0.5, 4.77], [5.6+0.5, 5.05], [5.0+0.5, 5.05]])
+# Moved right to avoid table overlap (Table ends at TX + sum(CWS_T) = 0.25 + 1.2 + 5.15 = 6.6)
+AX_O = DX + 1.2
+pts = np.array([[4.4 + AX_O, 5.55], [5.0 + AX_O, 5.55], [5.0 + AX_O, 5.83], [5.55 + AX_O, 5.3],
+                [5.0 + AX_O, 4.77], [5.0 + AX_O, 5.05], [4.4 + AX_O, 5.05]])
 ax.fill(pts[:, 0], pts[:, 1], color=C_I, zorder=8, alpha=0.90)
-txt(ax, 5.98, 5.3, "score\n×emb", ha="center", va="center",
+txt(ax, 4.97 + AX_O, 5.3, "score\n×emb", ha="center", va="center",
     fontsize=7.0, fontweight="bold", color="white")
 
 # ── CENTER: pixel image visualization ─────────────────────────────────────────
-txt(ax, 9.35, 7.38, "3-Channel 100×100 Image", ha="center",
+IMG_X = 7.75 + AX_O
+txt(ax, IMG_X, 7.38, "3-Channel 100×100 Image", ha="center",
     fontsize=10, fontweight="bold", color=C_I)
-txt(ax, 9.35, 7.08, "each row = centrality × CodeBERT embed (256-dim)",
+txt(ax, IMG_X, 7.08, "each row = centrality × CodeBERT embed (256-dim)",
     ha="center", fontsize=7.5, color="#546E7A")
 
 rng = np.random.default_rng(seed=42)
-# 3 channels simulating the centrality-weighted embedding structure
 ch_data = [
     np.clip(rng.normal(0.5, 0.15, (10, 10)) +
             np.linspace(0, 0.4, 10).reshape(-1, 1), 0, 1),
@@ -78,7 +83,7 @@ ch_data = [
 ]
 cmaps = ["Greens", "Blues", "Purples"]
 labels = ["Ch 1\n(degree)", "Ch 2\n(closeness)", "Ch 3\n(katz)"]
-xs = [7.4, 8.7, 10.0]
+xs = [5.8 + AX_O, 7.1 + AX_O, 8.4 + AX_O]
 for ch, cmap, lbl, xo in zip(ch_data, cmaps, labels, xs):
     ax.imshow(ch, extent=[xo, xo+1.15, 3.4, 6.7], cmap=cmap,
               alpha=0.88, zorder=3, aspect="auto")
@@ -91,28 +96,26 @@ for ch, cmap, lbl, xo in zip(ch_data, cmaps, labels, xs):
 row_lbls = ["buf[10]", "if(x>..", "buf[x]", "  }   ", "printf"]
 for ri, rl in enumerate(row_lbls):
     y = 6.37 - ri*0.66
-    txt(ax, 7.3, y, rl, ha="right", va="center",
+    txt(ax, 5.7 + AX_O, y, rl, ha="right", va="center",
         fontfamily="monospace", fontsize=5.8, color="#546E7A")
 
-# bracket showing "100 nodes → top 100 by centrality"
-txt(ax, 9.35, 2.72, "↑ 100 rows (nodes) × 100 cols (embed dims projected) × 3 channels",
+txt(ax, IMG_X, 2.72, "↑ 100 rows (nodes) × 100 cols (embed dims projected) × 3 channels",
     ha="center", va="center", fontsize=7.0, color="#37474F", style="italic")
 
 # ── RIGHT: CNN ────────────────────────────────────────────────────────────────
-txt(ax, 13.35, 7.38, "3-Layer CNN + AvgPool", ha="center",
+CNN_X = 11.75 + AX_O
+txt(ax, CNN_X, 7.38, "3-Layer CNN + AvgPool", ha="center",
     fontsize=10, fontweight="bold", color=C_I)
 
 # arrow from image to CNN
-ax.annotate("", xy=(11.48, 5.05), xytext=(11.22, 5.05),
+ax.annotate("", xy=(9.75 + AX_O, 5.05), xytext=(9.62 + AX_O, 5.05),
             arrowprops=dict(arrowstyle="-|>", color=C_I, lw=1.8, mutation_scale=12))
 
-# CNN layer stack (3 conv blocks)
+# CNN layer stack
 cnn_layers = [
-    # (11.45, 3.9, 1.8, 2.2,  "Conv + BN\n+ ReLU",    "#C8E6C9", C_I),
-    (11.45, 3.9, 1.8, 2.2,  "",    "#C8E6C9", C_I),
-    # (11.7, 3.7, 1.8, 2.2,  "Conv + BN\n+ ReLU",    "#A5D6A7", C_I),
-    (11.7, 3.7, 1.8, 2.2,  "",    "#A5D6A7", C_I),
-    (11.95, 3.5, 1.8, 2.2,  "Conv + BN\n+ ReLU",    "#81C784", C_I),
+    (9.85 + AX_O, 3.9, 1.8, 2.2,  "",    "#C8E6C9", C_I),
+    (10.1 + AX_O, 3.7, 1.8, 2.2,  "",    "#A5D6A7", C_I),
+    (10.35 + AX_O, 3.5, 1.8, 2.2,  "Conv + BN\n+ ReLU",    "#81C784", C_I),
 ]
 for x, y, w, h, lbl, fc, ec in cnn_layers:
     box(ax, x, y, w, h, fc, ec, lw=1.2, rad=0.08, zo=4)
@@ -120,20 +123,19 @@ for x, y, w, h, lbl, fc, ec in cnn_layers:
         fontsize=7.5, color="#1B5E20", fontweight="bold")
 
 # AvgPool → h_I
-ax.annotate("", xy=(14.03, 5.05), xytext=(13.85, 5.05),
+ax.annotate("", xy=(12.4 + AX_O, 5.05), xytext=(12.25 + AX_O, 5.05),
             arrowprops=dict(arrowstyle="-|>", color=C_I, lw=1.8, mutation_scale=12))
-txt(ax, 13.65, 5.3, "AvgPool", ha="center", va="center", fontsize=7.2, color=C_I)
-box(ax, 14.05, 4.42, 1.35, 1.25, BG_I, C_I, lw=1.8, rad=0.12, zo=5)
-txt(ax, 14.73, 5.22, "h_I",    ha="center", va="center",
+txt(ax, 12.05 + AX_O, 5.3, "AvgPool", ha="center", va="center", fontsize=7.2, color=C_I)
+box(ax, 12.45 + AX_O, 4.42, 1.35, 1.25, BG_I, C_I, lw=1.8, rad=0.12, zo=5)
+txt(ax, 13.13 + AX_O, 5.22, "h_I",    ha="center", va="center",
     fontsize=11, fontweight="bold", color=C_I)
-txt(ax, 14.73, 4.75, "∈  ℝ²⁵⁶", ha="center",
+txt(ax, 13.13 + AX_O, 4.75, "∈  ℝ²⁵⁶", ha="center",
     va="center", fontsize=8.5, color=C_I)
 
 # ── BOTTOM: encoding explanation ──────────────────────────────────────────────
-box(ax, 0.15, 0.12, 15.3, 0.65, BG_I, C_I, lw=1.2, rad=0.1, zo=3)
-txt(ax, 8.0, 0.45, "Pixel (i, j, c) = centrality_score_c(node i)  ×  CodeBERT_embed(node i)[j]"
+box(ax, 0.15 + DX, 0.12, 13.7, 0.65, BG_I, C_I, lw=1.2, rad=0.1, zo=3)
+txt(ax, 7.0 + DX, 0.45, "Pixel (i, j, c) = centrality_score_c(node i)  ×  CodeBERT_embed(node i)[j]"
     "   →   spatial pattern captures dependency topology",
     ha="center", va="center", fontsize=7.8, color=C_I)
-
 
 save(fig, os.path.join(os.path.dirname(__file__), "fig06_image_branch.png"))
