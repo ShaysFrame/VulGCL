@@ -12,6 +12,12 @@ second-order centrality and a jump-structured CNN architecture, improving speed
 by $3.9\times$ over VulCNN. VulSCC~\cite{vulscc} augments image-based detection
 with a frozen code LLM (Jina-embeddings-code) for semantic enrichment but
 retains no graph branch. None of these methods incorporates graph message-passing.
+More recently, the exploration of visual code representations has extended to 
+Vision-Language Models (VLMs). Specifically, CodeOCR~\cite{codeocr} demonstrates 
+that multimodal LLMs can understand code rendered as screenshots and exhibit 
+resilience to visual compression. Unlike general-purpose VLM-based approaches 
+that require massive computational footprints, VulGCL utilizes a lightweight, 
+task-specific centrality image and CNN design designed for efficient execution.
 
 \subsection{Graph-Based Vulnerability Detection}
 
